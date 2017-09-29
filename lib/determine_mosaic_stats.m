@@ -123,22 +123,6 @@ else
 end
 
 % waitbar(0.6, wb, 'Determining DFT-derived spacing');
-%% FOR FFT - Fit sigmoid to FFT output, find decending/decreasing beginning.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Determine FFT Power Spectra %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% If sim_im isn't zero, then
-% if length(sim_im)~=1
-% %       [power_spect fft_spac] = determine_power_spectra(sim_im,24.04,736);
-%       [power_spect fft_radius fft_spac corr] = annulus_xcorr(sim_im,scaling{2},scaling{3});
-% else
-%       [power_spect fft_radius fft_spac] = zeros(1,3);
-% %       power_spect = 0;
-% %       fft_radius = 0;
-% %       fft_spac = 0;
-% end
-
 
 % waitbar(0.7,wb, 'Determining Inter-cell distance');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

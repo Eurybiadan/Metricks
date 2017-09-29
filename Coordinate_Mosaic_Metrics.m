@@ -59,7 +59,7 @@ for i=1:size(fnamelist,1)
     try
         if ~isdir{i}
 
-            waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i},'_','\_') );
+            waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i}(1:42),'_','\_') );
 
             [idpiece1 remain]=strtok(fnamelist{i},'_'); %Take Referrer
             [idpiece2 remain]=strtok(remain,'_'); %Take ID #
@@ -145,6 +145,17 @@ for i=1:size(fnamelist,1)
 
             statistics = determine_mosaic_stats( clipped_coords, scaleval, selectedunit, clip_start_end ,[pixelwindowsize pixelwindowsize], 4 );
 
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% Determine FFT Power Spectra %%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')
+                [pixel_spac, interped_spac_map] = fit_fourier_spacing(im);
+                statistics.DFT_Spacing = pixel_spac*scaleval;
+                
+                statistics.IC_Distance_Corrected
+                statistics.DRP
+                statistics.DFT_Spacing
+            end
 
 
             warning off;
