@@ -133,8 +133,8 @@ end
 
 dt = DelaunayTri(coords);
 m=1;
-inter_cell_dist = zeros(size(coords,1),1);
-max_cell_dist = zeros(size(coords,1),1);
+% max_cell_dist=[];
+% inter_cell_dist=[];
 
 correct_inter_cell_dist = zeros(size(coords,1),1);
 correct_max_cell_dist = zeros(size(coords,1),1);
@@ -167,9 +167,6 @@ for k=1 : size(coords,1)
         m = m+1;
     end
     
-    inter_cell_dist(m) = scale*(sum(cell_dist(1,:)) / (length(cell_dist(1,:))-1));
-    max_cell_dist(m)   = scale*max(cell_dist(1,:));    
-    
 end
 m = m-1;
 
@@ -178,9 +175,6 @@ if ~isempty(coords_bound)
     mean_correct_inter_cell_dist = mean(correct_inter_cell_dist(1:m));
     regularity_ic_index = mean(correct_inter_cell_dist(1:m))./std(correct_inter_cell_dist(1:m));
     mean_correct_max_cell_dist   = mean( correct_max_cell_dist(1:m) );
-    
-    mean_inter_cell_dist = mean(inter_cell_dist(1:m));    
-    mean_max_cell_dist   = mean( max_cell_dist(1:m) );
 else
     regularity_ic_index = 0;
     mean_correct_nn_dist=0;
@@ -193,22 +187,18 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % waitbar(0.8,wb, 'Determining DRP');
 
-[ density_per_rad, um_drp_sizes, drp_spac]=calculate_DRP(coords, [bounds(1:2); bounds(3:4)], scale, pixel_density, reliability );
+[ density_per_rad um_drp_sizes drp_spac]=calculate_DRP(coords, [bounds(1:2); bounds(3:4)], scale, pixel_density, reliability );
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Output List Formatting %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Make the returned struct
-if strcmp(unit,'microns (mm density)')
-    total_coord_area=total_coord_area*1000^2;      
-end
-
-mosaic_stats = struct('Number_Unbound_Cells', numcells,'Number_Bounded_Cells', length(cellarea), 'Total_Area', total_coord_area, 'Total_Bound_Area',total_cell_area,...                      
-                      'Density_Bound',density_bound, 'NN_Distance_Corrected',mean_correct_nn_dist,'IC_Distance_Corrected',mean_correct_inter_cell_dist,'Furthest_Distance_Corrected',mean_correct_max_cell_dist,...
-                      'Mean_Voronoi_Area', mean_cellarea,'Percent_Six_Sided_Voronoi',percent_six_sided,'DRP_Distance', drp_spac,...
+mosaic_stats = struct('Number_Unbound_Cells', numcells,'Number_Bounded_Cells', length(cellarea), 'Total_Area', total_coord_area, 'Total_Voronoi_Area',total_cell_area,...                      
+                      'Density_Bound',density_bound, 'NN_Distance_Corrected',mean_correct_nn_dist,'IC_Distance_Corrected',mean_correct_inter_cell_dist,'Max_Distance_Corrected',mean_correct_max_cell_dist,...
+                      'Mean_Voronoi_Area', mean_cellarea,'Percent_Six_Sided_Voronoi',percent_six_sided,'DRP', drp_spac,...
                       'Voronoi_Area_RI',regularity_voro_index,'Voronoi_Sides_RI',regularity_voro_sides, 'NN_RI', regularity_nn_index, 'IC_RI', regularity_ic_index,...
-                      'Density_Uncorrected', density_dc ,'NN_Distance_Uncorrected', mean_nn_dist, 'IC_Distance_Uncorrected',mean_inter_cell_dist, 'Furthest_Distance_Uncorrected',mean_max_cell_dist);
+                  'Density_Uncorrected', density_dc ,'NN_Distance_Uncorrected', mean_nn_dist, 'IC_Distance_Uncorrected',mean_inter_cell_dist, 'Max_Distance_Uncorrected',mean_max_cell_dist,...
 
 end
 

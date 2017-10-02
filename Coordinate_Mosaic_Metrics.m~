@@ -61,17 +61,21 @@ for i=1:size(fnamelist,1)
 
             waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i}(1:42),'_','\_') );
 
+            [idpiece1 remain]=strtok(fnamelist{i},'_'); %Take Referrer
+            [idpiece2 remain]=strtok(remain,'_'); %Take ID #
+            subID=[idpiece1 '_' idpiece2]; 
+            clear remain idpiece1 idpiece2;
+
             if isnan(scaleinput)
-                % Calculate the scale for this identifier.                                
+                % Calculate the scale for this ID
+                                
                 LUTindex=find( cellfun(@(s) ~isempty(strfind(fnamelist{i},s )), lutData{1} ) );
 
-                % Use whichever scale is most similar to our filename.
-                sim = 1000*ones(length(LUTindex),1);
+                % Use Whichever scale is most similar to our filename.
+                sim=
                 for l=1:length(LUTindex)
-                    sim(l) = lev(fnamelist{i}, lutData{1}{LUTindex(l)});
+                    lev(fnamelist{i}, lutData{1}{LUTindex(l)}
                 end
-                [~,simind]=min(sim);
-                LUTindex = LUTindex(simind);
                 
                 axiallength = lutData{2}(LUTindex);
                 pixelsperdegree = lutData{3}(LUTindex);
@@ -116,7 +120,7 @@ for i=1:size(fnamelist,1)
                     diffheight = (height-pixelwindowsize)/2;
                 else
 
-                    pixelwindowsize = [height width];
+                    pixelwindowsize = [height width]./scaleval;
                     diffwidth=0;
                     diffheight=0;
                 end
@@ -136,7 +140,8 @@ for i=1:size(fnamelist,1)
                     diffwidth  = (width-pixelwindowsize)/2;
                     diffheight = (height-pixelwindowsize)/2;
                 else
-                    pixelwindowsize = [height width];
+
+                    pixelwindowsize = [height width]./scaleval;
                     diffwidth=0;
                     diffheight=0;
                 end
@@ -169,7 +174,7 @@ for i=1:size(fnamelist,1)
             if success
 
                 if first
-                    fid= fopen(fullfile(basepath,'Results',[getparent(basepath,'short') '_coordstats_' date '.csv'] ),'w');
+                    fid= fopen(fullfile(basepath,'Results',[getparent(basepath,'short') '_coordstats.csv'] ),'w');
 
                     % If it is the first time writing the file, then write the
                     % header
@@ -205,7 +210,7 @@ for i=1:size(fnamelist,1)
                     first = false;
 
                 else % If it isn't the first entry, then append.
-                    fid= fopen(fullfile(basepath,'Results',[getparent(basepath,'short') '_coordstats_' date '.csv'] ),'a');
+                    fid= fopen(fullfile(basepath,'Results',[getparent(basepath,'short') '_coordstats.csv'] ),'a');
                 end
 
                 % Write the file we've worked on as the first column
