@@ -15,7 +15,7 @@ It will then prompt the user to select what the output unit should be. At presen
 * Degrees
 * Arcminutes
 
-Once the output unit is select, it will give the user the option to pick a lookup table. The lookup table allows the software to analyze a folder of images from different subjects/timepoints/conditions. The lookup table itself **must** be a 3 column 'csv' file, where the **first column** is a common identifier for an image type, the **second column** is the subject's axial length (or '24' if the axial length is unknown), and the **third column** is the pixels per degree of the image/coordinate pair. Each row must contain a different identifier/axial length/pixels per degree tuple.
+Once the output unit is select, it will give the user the option to pick a lookup table. The lookup table allows the software to analyze a folder of images from different subjects/timepoints/conditions. The lookup table itself **must** be a 3 column 'csv' file, where the **first column** is a common identifier for image/coordinate pairs, the **second column** is the axial length (or '24' if the axial length is unknown) of the image/coordinate pairs, and the **third column** is the pixels per degree of the image/coordinate pairs. Each row must contain a different identifier/axial length/pixels per degree tuple.
 
 An example common identifier could be a subject number, e.g, when working with the files
 - 1235_dateoftheyear_OD_0004.tif
