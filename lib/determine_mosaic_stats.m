@@ -133,8 +133,8 @@ end
 
 dt = DelaunayTri(coords);
 m=1;
-inter_cell_dist = zeros(size(coords,1),1);
-max_cell_dist = zeros(size(coords,1),1);
+inter_cell_dist = [];
+max_cell_dist = [];
 
 correct_inter_cell_dist = zeros(size(coords,1),1);
 correct_max_cell_dist = zeros(size(coords,1),1);
@@ -167,20 +167,20 @@ for k=1 : size(coords,1)
         m = m+1;
     end
     
-    inter_cell_dist(m) = scale*(sum(cell_dist(1,:)) / (length(cell_dist(1,:))-1));
-    max_cell_dist(m)   = scale*max(cell_dist(1,:));    
+    inter_cell_dist = [inter_cell_dist; scale*(sum(cell_dist(1,:)) / length(cell_dist(1,:))-1)];
+    max_cell_dist   = [max_cell_dist; scale*max(cell_dist(1,:))];    
     
 end
 m = m-1;
-
+mean_inter_cell_dist = mean(inter_cell_dist);    
+mean_max_cell_dist   = mean( max_cell_dist );
+    
 if ~isempty(coords_bound)
     mean_correct_nn_dist = mean( correct_nn_cell_dist(1:m) );
     mean_correct_inter_cell_dist = mean(correct_inter_cell_dist(1:m));
     regularity_ic_index = mean(correct_inter_cell_dist(1:m))./std(correct_inter_cell_dist(1:m));
-    mean_correct_max_cell_dist   = mean( correct_max_cell_dist(1:m) );
+    mean_correct_max_cell_dist   = mean( correct_max_cell_dist(1:m) );    
     
-    mean_inter_cell_dist = mean(inter_cell_dist(1:m));    
-    mean_max_cell_dist   = mean( max_cell_dist(1:m) );
 else
     regularity_ic_index = 0;
     mean_correct_nn_dist=0;
