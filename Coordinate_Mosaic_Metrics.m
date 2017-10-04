@@ -19,6 +19,9 @@ path(path,fullfile(basePath,'lib')); % Add our support library to the path.
 [basepath] = uigetdir(pwd);
 
 [fnamelist, isdir ] = read_folder_contents(basepath,'csv');
+[fnamelisttxt, isdir ] = read_folder_contents(basepath,'txt');
+
+fnamelist = [fnamelist; fnamelisttxt];
 
 liststr = {'microns (mm density)','degrees','arcmin'};
 [selectedunit, oked] = listdlg('PromptString','Select output units:',...
@@ -153,7 +156,7 @@ for i=1:size(fnamelist,1)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Determine FFT Power Spectra %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')
+            if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
                 [pixel_spac, interped_spac_map] = fit_fourier_spacing(im);
                 statistics.DFT_Spacing = pixel_spac*scaleval;                
             end
