@@ -1,6 +1,6 @@
 function [spacing, predictions, fitParams] = fourierFit(fourierProfile, prior)
 
-doplots = true;
+doplots = false;
 
 %% Start plot
 if doplots
@@ -84,8 +84,9 @@ end
 
 if doplots
     hold off;drawnow;
+    figure(2); plot(residuals)
 end
-figure(2); plot(residuals)
+
 
 end
 

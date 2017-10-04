@@ -57,10 +57,10 @@ for r=1:length(pixel_spac(:))
 
 
         pixel_spac(r) = fourierFit(fourierProfile,[]); 
-        pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
-%         if pixel_spac(r) > 15
-%             pixel_spac(r)
-%         end
+        pixel_spac(r) = pixel_spac(r)*( 0.49 / (size(polarroi,2)*2));
+        if pixel_spac(r) > 15
+            pixel_spac(r)
+        end
 %         [i, j]=ind2sub(size(roi),r)
 %         spac(r)
     end
