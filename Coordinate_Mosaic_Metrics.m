@@ -7,9 +7,13 @@
 clear;
 close all force;
 
-windowsize = [ ];
+windowsize = [];
 %% Crop the coordinates/image to this size in [scale], and calculate the area from it.
 % If left empty, it uses the size of the image.
+
+if length(windowsize) > 1
+   error('Window size can only be empty [], or a single value!');
+end
 
 basePath = which('Coordinate_Mosaic_Metrics.m');
 
@@ -19,9 +23,10 @@ path(path,fullfile(basePath,'lib')); % Add our support library to the path.
 [basepath] = uigetdir(pwd);
 
 [fnamelist, isdir ] = read_folder_contents(basepath,'csv');
-[fnamelisttxt, isdir ] = read_folder_contents(basepath,'txt');
+[fnamelisttxt, isdirtxt ] = read_folder_contents(basepath,'txt');
 
 fnamelist = [fnamelist; fnamelisttxt];
+isdir = [isdir;isdirtxt];
 
 liststr = {'microns (mm density)','degrees','arcmin'};
 [selectedunit, oked] = listdlg('PromptString','Select output units:',...
@@ -165,10 +170,16 @@ for i=1:size(fnamelist,1)
             warning off;
             [ success ] = mkdir(basepath,'Results');
             warning on;
+            
+            if isempty(windowsize)
+                result_fname = [getparent(basepath,'short') '_coordstats_' date '.csv'];
+            else
+                result_fname = [getparent(basepath,'short') '_coordstats_' date '_' num2str(windowsize) selectedunit '.csv'];
+            end
             if success
 
                 if first
-                    fid= fopen(fullfile(basepath,'Results',[getparent(basepath,'short') '_coordstats_' date '.csv'] ),'w');
+                    fid= fopen(fullfile(basepath,'Results', result_fname),'w');
 
                     % If it is the first time writing the file, then write the
                     % header
@@ -204,7 +215,7 @@ for i=1:size(fnamelist,1)
                     first = false;
 
                 else % If it isn't the first entry, then append.
-                    fid= fopen(fullfile(basepath,'Results',[getparent(basepath,'short') '_coordstats_' date '.csv'] ),'a');
+                    fid= fopen(fullfile(basepath,'Results',result_fname ),'a');
                 end
 
                 % Write the file we've worked on as the first column
