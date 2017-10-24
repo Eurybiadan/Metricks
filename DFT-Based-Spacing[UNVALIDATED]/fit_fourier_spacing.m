@@ -5,6 +5,9 @@ if ~exist('test_image','var')
     [filename, pathname] = uigetfile('*.tif', 'Pick an image to segment');
 
     test_image = imread( fullfile(pathname, filename) );
+    if size(test_image,3) >1
+        test_image = test_image(:,:,1);
+    end
 end
 % tic;
 
@@ -55,9 +58,12 @@ for r=1:length(pixel_spac(:))
 
         fourierProfile = mean(polarroi);
 
-
-        pixel_spac(r) = fourierFit(fourierProfile,[]); 
-        pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+        if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
+            pixel_spac(r) = fourierFit(fourierProfile,[]); 
+            pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+        else
+            pixel_spac(r) = 0;
+        end
 %         if pixel_spac(r) > 15
 %             pixel_spac(r)
 %         end
@@ -75,7 +81,7 @@ if length(roi) > 1
     [Xq,Yq]=meshgrid( 1:(size(test_image,2)-roi_size-1), 1:(size(test_image,1)-roi_size-1));
     interped_spac_map = interp2( X,Y, pixel_spac, Xq, Yq);
     
-%     imagesc(interped_spac_map); axis image;
+    imagesc(interped_spac_map); axis image;
 end
 
 

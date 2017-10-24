@@ -1,6 +1,6 @@
 function [spacing, predictions, fitParams] = fourierFit(fourierProfile, prior)
 
-doplots = false;
+doplots = true;
 
 %% Start plot
 if doplots
@@ -18,14 +18,17 @@ fourierProfile = fourierProfile(~isinf(fourierProfile));
 timeBase = 0:(length(fourierProfile)-1);
 
 if isempty(prior)
-    % Make initial guesses
-    fitParams.scale1 = 1;
-    fitParams.decay1 = .01;
-    fitParams.offset1 = max(fourierProfile)-fitParams.scale1;
-    fitParams.scale2 = max(fourierProfile)*0.9;
-    fitParams.decay2 = .01;
     
     fitParams.shift = fourierFit_v2(fourierProfile);
+    % Make initial guesses
+    fitParams.scale1 = 1;
+    fitParams.decay1 = (fourierProfile(1)*.36) /...
+                        (fitParams.shift-1);
+    fitParams.offset1 = max(fourierProfile)-fitParams.scale1;
+    fitParams.scale2 =  fitParams.offset1*.3679;
+    fitParams.decay2 = (fourierProfile(fitParams.shift)*.36) /...
+                        (length(fourierProfile)-fitParams.shift);
+        
 else
     fitParams = prior;
 end

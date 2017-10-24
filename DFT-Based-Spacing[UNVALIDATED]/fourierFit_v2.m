@@ -2,7 +2,7 @@ function [maxnegdiff_ind ] = fourierFit_v2(fourierProfile)
 
 
 %% Set up initial guess for fit parameters
-doplots = false;
+doplots = true;
 
 % Remove any nan and inf.
 fourierProfile = fourierProfile(~isnan(fourierProfile));
@@ -56,13 +56,14 @@ if doplots
     hold off;drawnow;
 end
 
-% Find the first zero crossing (where the fit intersects with the curve)
+% Find the second zero crossing (where the fit intersects with the curve)
 residuals = predictions-fourierProfile;
 
-preval = residuals(2)-residuals(1);
+residuals = medfilt1(residuals,10);
+preval = residuals(1);
 for i=2:length(residuals)-1
    
-    thisval = residuals(i+1)-residuals(i);
+    thisval = residuals(i);
     
     if preval<0 && thisval>0
         maxnegdiff_ind=i;
@@ -71,24 +72,27 @@ for i=2:length(residuals)-1
     preval = thisval;
 end
 
+% Trace back to where it is maximally different from our fit.
+preval = residuals(maxnegdiff_ind-1)-residuals(maxnegdiff_ind);
+for i=maxnegdiff_ind-1:-1:2
+   
+    thisval = residuals(i-1)-residuals(i);
+    
+    if preval<=0 && thisval<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
+        maxnegdiff_ind=i; 
+%         figure(11); plot( residuals );
+%     hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'r*' );
+    elseif thisval>0.07
+        break;
+    end
+    preval = thisval;
+end
 
-% threequarters= round(length(predictions)*3/4);
 
-% [pks, locs] = findpeaks( -(predictions(1:end-threequarters)-fourierProfile(1:end-threequarters)) );
-% 
-% [pks, ind]=sort(pks,2,'descend');
-% locs = locs(ind);
-% 
-% % Pick the first two lowest points, and return whichever is the closest to the
-% % beginning. (we want to align to the cone one)
-% [minpk, minpk_ind] = min(locs(1:2));
-% 
-% maxnegdiff_ind = locs(minpk_ind);
-% 
-% % maxnegdiff
+
 if doplots
-    figure(11); plot( diff(residuals) );
-    maxnegdiff_ind;
+    figure(11); plot( residuals );
+    hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'r*' );
 end
 
 end
