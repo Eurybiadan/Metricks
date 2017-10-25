@@ -64,26 +64,43 @@ end
 
 
 residuals = fourierProfile-predictions;
-spacing = fitParams.shift;
+spacing = ceil(fitParams.shift);
+residuals = medfilt1(residuals,7);
 
-
-[pks, locs]= findpeaks( residuals(1:ceil(spacing)) );
-
-% If the last point is rising, then take add it to our list.
-if residuals(ceil(spacing))-residuals(ceil(spacing-1)) > 0
-    pks = [pks residuals(ceil(spacing))];
-    locs = ceil(spacing);
-end
-
-if ~isempty(locs)
+preval = residuals(spacing-1)-residuals(spacing);
+for i=spacing-1:-1:2
+   
+    thisval = residuals(i-1)-residuals(i);
     
-    pks = fliplr(pks);
-    locs = fliplr(locs);
-    if doplots
-        plot(locs(1), fourierProfile(locs(1)),'r*')
+    if preval>=0 && thisval>=0 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
+        spacing=i; 
+
+    elseif thisval<0.07
+        if doplots
+            plot(spacing, fourierProfile(spacing),'r*')
+        end
+        break;
     end
-    spacing = locs(1);
+    preval = thisval;
 end
+
+% [pks, locs]= findpeaks( residuals(1:ceil(spacing)) );
+% 
+% % If the last point is rising, then take add it to our list.
+% if residuals(ceil(spacing))-residuals(ceil(spacing-1)) > 0
+%     pks = [pks residuals(ceil(spacing))];
+%     locs = ceil(spacing);
+% end
+% 
+% if ~isempty(locs)
+%     
+%     pks = fliplr(pks);
+%     locs = fliplr(locs);
+%     if doplots
+%         plot(locs(1), fourierProfile(locs(1)),'r*')
+%     end
+%     spacing = locs(1);
+% end
 
 if doplots
     hold off;drawnow;
