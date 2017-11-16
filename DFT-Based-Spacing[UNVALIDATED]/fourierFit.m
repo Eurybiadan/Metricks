@@ -1,6 +1,6 @@
 function [spacing, predictions, fitParams] = fourierFit(fourierProfile, prior)
 
-doplots = true;
+doplots = false;
 
 %% Start plot
 if doplots

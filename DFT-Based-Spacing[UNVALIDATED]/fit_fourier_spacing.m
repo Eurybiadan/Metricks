@@ -1,4 +1,4 @@
-function [avg_pixel_spac, interped_spac_map] = fit_fourier_spacing(test_image)
+function [avg_pixel_spac, interped_spac_map, imbox] = fit_fourier_spacing(test_image)
 
 
 if ~exist('test_image','var')
@@ -12,18 +12,28 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 300;
+roi_size = 125; % 300
+roi_step = floor(roi_size/4);
+
+imcomps = bwconncomp( imclose(test_image>0,ones(5)) );
+imbox = regionprops(imcomps, 'BoundingBox');
+imbox = floor(imbox.BoundingBox);
 
 if any( im_size < roi_size)    
     roi = {test_image};
 else
-    roi = cell(round(size(test_image)/10)-roi_size);
+    roi = cell(round((size(test_image)-roi_size)/roi_step));
 
-    for i=1:10:size(test_image,1)-roi_size
-        for j=1:10:size(test_image,2)-roi_size
+    for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
+        for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-            roi{round(i/10)+1,round(j/10)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
-
+            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)==0));
+            
+            if numzeros < (roi_size*roi_size)*0.05
+                roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
+            else
+                roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+            end
         end
     end
 end
@@ -43,19 +53,8 @@ for r=1:length(pixel_spac(:))
         polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,'linear');
         polarroi = circshift(polarroi,-90,1);
 
-        % for i=1:size(polarroi,1)
-        %     polarroi(i,:) = conv(polarroi(i,:),[1/5 1/5 1/5 1/5 1/5], 'same' );
-        % end
-
-        % figure(1);
-        % imagesc(polarroi); colormap gray;
-
         img = polarroi';
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-        % figure(2);
-        % imagesc(power_spect); colormap gray; %hold on; plot(x+size(power_spect,2)/2, y+size(power_spect,1)/2); hold off;
-
+        
         fourierProfile = mean(polarroi);
 
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
@@ -64,53 +63,45 @@ for r=1:length(pixel_spac(:))
         else
             pixel_spac(r) = 0;
         end
-%         if pixel_spac(r) > 15
-%             pixel_spac(r)
-%         end
-%         [i, j]=ind2sub(size(roi),r)
-%         spac(r)
+
     end
 end
 
-avg_pixel_spac = mean(pixel_spac);
+avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
+std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
 
-interped_spac_map=[];
-% If we've sampled over the region, then display the heat_map
+%% If we've sampled over the region, then create the heat map
 if length(roi) > 1
-    [X,Y]=meshgrid( 1:10:(size(test_image,2)-roi_size-1), 1:10:(size(test_image,1)-roi_size-1));
-    [Xq,Yq]=meshgrid( 1:(size(test_image,2)-roi_size-1), 1:(size(test_image,1)-roi_size-1));
-    interped_spac_map = interp2( X,Y, pixel_spac, Xq, Yq);
+    interped_spac_map=zeros(im_size);
+    sum_map=zeros(im_size);
     
-    imagesc(interped_spac_map); axis image;
+    for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
+        for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
+
+            if ~isnan(pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1))
+                thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
+                
+                if thisspac < avg_pixel_spac+(2*std_pixel_spac) % Prevent any large swings.
+                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thisspac;
+                    sum_map(i:i+roi_size-1, j:j+roi_size-1) = sum_map(i:i+roi_size-1, j:j+roi_size-1) + 1;
+                end
+            end
+        end
+    end
+    
+    interped_spac_map = interped_spac_map./sum_map;
+    
+%     [X,Y]=meshgrid( 1:roi_step:(size(test_image,2)-roi_size-1), 1:roi_step:(size(test_image,1)-roi_size-1));
+%     [Xq,Yq]=meshgrid( 1:(size(test_image,2)-roi_size-1), 1:(size(test_image,1)-roi_size-1));
+%     interped_spac_map = interp2( X,Y, pixel_spac, Xq, Yq);
+    
+    interped_spac_map = interped_spac_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
+
+    figure(1); imagesc(interped_spac_map); axis image;
+    
 end
 
 
 
         
 end
-%% Old, full image approach
-% power_spect = fftshift(fft2(test_image));
-% power_spect = log10(abs(power_spect).^2);
-% 
-% rhosampling = .5;
-% thetasampling = 1;
-% 
-% polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,'linear');
-% polarroi = circshift(polarroi,-90,1);
-% 
-% % for i=1:size(polarroi,1)
-% %     polarroi(i,:) = conv(polarroi(i,:),[1/5 1/5 1/5 1/5 1/5], 'same' );
-% % end
-% 
-% % figure(1);
-% % imagesc(polarroi); colormap gray;
-% 
-% img = polarroi';
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 
-% % figure(2);
-% % imagesc(power_spect); colormap gray; %hold on; plot(x+size(power_spect,2)/2, y+size(power_spect,1)/2); hold off;
-% 
-% fourierProfile = mean(polarroi);
-% 
-% fourierFit(fourierProfile,[]);
