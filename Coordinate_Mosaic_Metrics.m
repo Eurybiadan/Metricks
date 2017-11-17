@@ -67,7 +67,12 @@ for i=1:size(fnamelist,1)
     try
         if ~isdir{i}
 
-            waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i}(1:42),'_','\_') );
+            
+            if length(fnamelist{i})>42
+                waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i}(1:42),'_','\_') );
+            else
+                waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i},'_','\_') );
+            end
 
             if isnan(scaleinput)
                 % Calculate the scale for this identifier.                                
