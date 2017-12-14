@@ -59,7 +59,7 @@ end
 % Find the second zero crossing (where the fit intersects with the curve)
 residuals = predictions-fourierProfile;
 
-residuals = medfilt1(residuals,10);
+residuals = medfilt1(residuals,7);
 preval = residuals(1);
 for i=2:length(residuals)-1
    
@@ -72,17 +72,20 @@ for i=2:length(residuals)-1
     preval = thisval;
 end
 
+if doplots
+    figure(11); clf;
+    hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'b*' );
+end
+
 % Trace back to where it is maximally different from our fit.
 preval = residuals(maxnegdiff_ind-1)-residuals(maxnegdiff_ind);
 for i=maxnegdiff_ind-1:-1:2
    
     thisval = residuals(i-1)-residuals(i);
     
-    if preval<=0 && thisval<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
+    if round(preval, 5)<=0 && round(thisval,5)<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
         maxnegdiff_ind=i; 
-%         figure(11); plot( residuals );
-%     hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'r*' );
-    elseif thisval>0.07
+    elseif thisval>0.035
         break;
     end
     preval = thisval;
