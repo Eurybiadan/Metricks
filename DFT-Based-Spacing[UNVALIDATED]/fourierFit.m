@@ -103,8 +103,10 @@ end
 % end
 
 if doplots
+    
+    figure(2); clf; hold on; plot(residuals)
+    plot(spacing, residuals(spacing),'r*')
     hold off;drawnow;
-    figure(2); plot(residuals)
 end
 
 

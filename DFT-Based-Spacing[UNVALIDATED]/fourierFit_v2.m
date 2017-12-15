@@ -60,16 +60,33 @@ end
 residuals = predictions-fourierProfile;
 
 residuals = medfilt1(residuals,7);
-preval = residuals(1);
-for i=2:length(residuals)-1
-   
-    thisval = residuals(i);
-    
-    if preval<0 && thisval>0
-        maxnegdiff_ind=i;
-        break;
+
+[pks,locs] = findpeaks(residuals*-1);
+locs = locs(pks>0); % Find all local minima that are below 0 (the fit is underneath the data)
+
+curheight = 1;
+curind=1;
+
+prevals = residuals(1:3);
+for l=1:length(locs) % For each of the minima underneath the data,
+        
+    for i=locs(l):length(residuals)-1
+
+        thisval = residuals(i);
+
+        if all(prevals<0) && thisval>0 % Find the zero crossings
+            curind=i;
+            break;
+        end
+        prevals(1:2) = prevals(2:3);
+        prevals(3) = thisval;
     end
-    preval = thisval;
+    % If the zero crossing was preceded by a lower minima,
+    % then take/keep that as our starting point for the next step.
+    if residuals(locs(l))<=curheight
+        curheight = residuals(locs(l));
+        maxnegdiff_ind = curind;
+    end
 end
 
 if doplots
@@ -85,7 +102,7 @@ for i=maxnegdiff_ind-1:-1:2
     
     if round(preval, 5)<=0 && round(thisval,5)<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
         maxnegdiff_ind=i; 
-    elseif thisval>0.035
+    elseif thisval>0.01
         break;
     end
     preval = thisval;
