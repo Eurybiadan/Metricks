@@ -25,7 +25,19 @@ Common identifiers could be "1235", "1235_dateoftheyear", "1235_dateoftheyear_OD
 
 If we had another date, say: 1235_differentdateoftheyear_OD_0005.tif, then _only_ the identifier "1235" would match between all images. However, say the two dates have different scales, then you would want to create two rows in the look up table for each date, with identifiers like: "1235_dateoftheyear" and "1235_differentdateoftheyear".
 
-**If you do not wish to use a lookup table, then press "cancel", and the software will allow you put in your own scale in UNITS/pixel**
+**If you do not wish to use a lookup table, then press "cancel", and the software will allow you put in your own scale in UNITS/pixel.**
+
+**This software has the ability to pre-crop the input data (if, for example, you have 80 pixels of coordinates and you only want to analyze the middle 50).**
+
+To specify a cropping window, input the size (in the units you are going to use) in to the brackets on line 10 of Coordinate_Mosaic_Metricks.m.
+
+**Cropping is governed by the following rules:**
+
+- If the tif is present and windowsize is not specified, the analysis will be done on everything within the dimensions of the image.
+- If the tif is present and windowsize is specified, the assumed center of the image is calculated according to the borders of the tif. **In either case, it doesn’t “care” how many (or even if there are any) cells in the image.**
+- If the tif is not present and windowsize is not specified, the analysis will be done on everything within the min and max coordinates in both x and y directions. So if you have an image in which there is an absence of cells on one side, for example, you might end up with a clipped area that is not a square.
+- If the tif is not present and windowsize is specified, the assumed center of the image is calculated according to the min and max coordinates in both x and y directions. So if you have an image in which there is an absence of cells on one side, the center will shift towards the other side of the image.
+
 
 The software will then run, and calculate every metric currently validated.
 
@@ -49,8 +61,8 @@ At present, it calculates the following metrics from each image and coordinate p
 
 The results will then be placed in to a datestamped file within a "Results" folder as a subfolder of the one selected for analysis.
 
+## Don't thank me; cite me:
 Every metric that is run via the main "Coordinate_Mosaic_Metrics.m" script has been validated and used in the following manuscript: **Cooper RF, Wilk MA, Tarima S, Dubra A, Carroll J. “Evaluating descriptive metrics of the human cone mosaic.” Invest Ophthalmol Vis Sci. 2016 57(7):2993.** You can also find formal definitions of each metric calculated here in that paper.
 
 **This package is free for use under GPL v3, but I ask that you please cite the above paper if you use this package.**
-
 
