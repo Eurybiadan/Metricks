@@ -29,7 +29,7 @@ fitParams.shift = 0;
 % Add initial guess to the plot
 predictions0 = ComputeModelPreds(fitParams,timeBase);
 if doplots
-    figure(thePlot); hold on; plot(timeBase,predictions0,'k:','LineWidth',2); hold off;
+    figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
 end
 %% Fit
 
@@ -85,7 +85,7 @@ for l=1:length(locs) % For each of the minima underneath the data,
     % then take/keep that as our starting point for the next step.
     if residuals(locs(l))<=curheight
         curheight = residuals(locs(l));
-        maxnegdiff_ind = curind;
+        maxnegdiff_ind = locs(l);
     end
 end
 
@@ -102,7 +102,7 @@ for i=maxnegdiff_ind-1:-1:2
     
     if round(preval, 5)<=0 && round(thisval,5)<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
         maxnegdiff_ind=i; 
-    elseif thisval>0.01
+    elseif thisval>0.05
         figure(thePlot); hold on;
         plot( maxnegdiff_ind, fourierProfile(maxnegdiff_ind),'r*' );
         hold off;

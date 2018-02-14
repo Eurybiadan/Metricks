@@ -37,7 +37,7 @@ end
 % Add initial guess to the plot
 predictions0 = ComputeModelPreds(fitParams,timeBase);
 if doplots
-    figure(thePlot); hold on; plot(timeBase,predictions0,'k:','LineWidth',2); hold off;
+    figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
 end
 
 %% Fit
@@ -66,10 +66,13 @@ end
 
 
 residuals = fourierProfile-predictions;
-spacing = ceil(fitParams.shift)
-residuals = medfilt1(residuals,7);
+spacing = ceil(fitParams.shift);
+residuals = medfilt1(residuals,3);
 
 preval = residuals(spacing-1)-residuals(spacing);
+figure(2);
+plot(spacing, residuals(spacing),'b*');
+
 for i=spacing-1:-1:2
    
     thisval = residuals(i-1)-residuals(i);
@@ -79,6 +82,7 @@ for i=spacing-1:-1:2
 
     elseif thisval<0.07
         if doplots
+            figure(thePlot); 
             plot(spacing, fourierProfile(spacing),'r*')
         end
         break;
@@ -106,7 +110,8 @@ end
 
 if doplots
     hold off;drawnow;
-    figure(2);hold off; plot(residuals); hold on; plot(spacing, residuals(spacing),'r*');
+    figure(2);hold on; plot(residuals); hold on; plot(spacing, residuals(spacing),'r*');
+    hold off;
 end
 
 
