@@ -2,7 +2,7 @@ function [maxnegdiff_ind ] = fourierFit_v2(fourierProfile)
 
 
 %% Set up initial guess for fit parameters
-doplots = true;
+doplots = false;
 
 % Remove any nan and inf.
 fourierProfile = fourierProfile(~isnan(fourierProfile));
@@ -15,7 +15,7 @@ timeBase = 0:(length(fourierProfile)-1);
 if doplots
     thePlot = figure(10); clf; hold on
     set(gca,'FontName','Helvetica','FontSize',14);
-    plot(fourierProfile,'k');
+    plot(fourierProfile,'k.');
 end
 
 
@@ -59,17 +59,39 @@ end
 % Find the second zero crossing (where the fit intersects with the curve)
 residuals = predictions-fourierProfile;
 
-residuals = medfilt1(residuals,10);
-preval = residuals(1);
-for i=2:length(residuals)-1
-   
-    thisval = residuals(i);
-    
-    if preval<0 && thisval>0
-        maxnegdiff_ind=i;
-        break;
+residuals = medfilt1(residuals,7);
+
+[pks,locs] = findpeaks(residuals*-1);
+locs = locs(pks>0); % Find all local minima that are below 0 (the fit is underneath the data)
+
+curheight = 1;
+curind=1;
+
+prevals = residuals(1:3);
+for l=1:length(locs) % For each of the minima underneath the data,
+        
+    for i=locs(l):length(residuals)-1
+
+        thisval = residuals(i);
+
+        if all(prevals<0) && thisval>0 % Find the zero crossings
+            curind=i;
+            break;
+        end
+        prevals(1:2) = prevals(2:3);
+        prevals(3) = thisval;
     end
-    preval = thisval;
+    % If the zero crossing was preceded by a lower minima,
+    % then take/keep that as our starting point for the next step.
+    if residuals(locs(l))<=curheight
+        curheight = residuals(locs(l));
+        maxnegdiff_ind = curind;
+    end
+end
+
+if doplots
+    figure(11); clf;
+    hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'b*' );
 end
 
 % Trace back to where it is maximally different from our fit.
@@ -78,22 +100,18 @@ for i=maxnegdiff_ind-1:-1:2
    
     thisval = residuals(i-1)-residuals(i);
     
-    if preval<=0 && thisval<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
+    if round(preval, 5)<=0 && round(thisval,5)<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
         maxnegdiff_ind=i; 
-%         figure(11); plot( residuals );
-    
-    elseif thisval>0.07
-        figure(thePlot);hold on; plot( maxnegdiff_ind, fourierProfile(maxnegdiff_ind),'r*' );
-        axis([0 150 0 5]);
+    elseif thisval>0.01
         break;
     end
     preval = thisval;
 end
 
-maxnegdiff_ind
+
 
 if doplots
-    figure(11); hold off; plot( residuals );
+    figure(11); plot( residuals );
     hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'r*' );
 end
 

@@ -22,13 +22,10 @@ if ~exist('method','var') || isempty(method)
      method ='linear';
 end
 im = double(im);
-
+%%
 [X, Y]= meshgrid( 1:size(im,2), 1:size(im,1) );
 
-% X = X - (size(im,2)/2);
-% Y = Y - (size(im,1)/2);
-
-rho = 5:rhoSampling: floor(min(size(im))/2)-1;
+rho = 1:rhoSampling: floor(min(size(im))/2)-1;
 theta_step = thetaSampling*2*pi/360;
 theta = 0: theta_step: 2*pi-theta_step;
 
@@ -37,7 +34,7 @@ theta = 0: theta_step: 2*pi-theta_step;
 [Rx, Ty] = pol2cart(T,R);
 
 Rx = Rx + ceil(size(im,2)/2);
-Ty = Ty + ceil(size(im,2)/2);
+Ty = Ty + ceil(size(im,1)/2);
 
 pseudoim = interp2(X,Y,im,Rx,Ty,method);
 

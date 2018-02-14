@@ -26,8 +26,8 @@ end
 %%
 imsize = size(imread( fullfile(thispath, fNames{1}) ));
 
-blendedim = zeros(imsize);
-sum_map = zeros(imsize);
+blendedim = zeros(imsize(1:2));
+sum_map = zeros(imsize(1:2));
 
 for i=1:length(imbox)
    
@@ -47,5 +47,21 @@ end
 
 blendedim = blendedim./sum_map;
 
+
+%% Display the results.
 figure(1); imagesc(sum_map); colormap gray; axis image;
 figure(2); imagesc(blendedim); colormap gray; axis image;
+
+% Empirically determined spacing equation
+to_icd_spac = @(dft_spac) (1.5121*dft_spac.^0.6886);
+
+figure(3); imagesc( to_icd_spac(blendedim.*0.45) ); axis image;
+
+% To density, assuming perfect packing
+row_spac = to_icd_spac(blendedim.*0.45).* (sqrt(3)/ (2));
+
+density_map = (1000^2).*(sqrt(3))./(2 .* row_spac.^2);
+
+figure(4); imagesc( density_map ); axis image;
+
+save( fullfile(thispath,'Fouriest.mat') );

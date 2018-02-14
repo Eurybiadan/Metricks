@@ -20,6 +20,16 @@ imcomps = bwconncomp( imclose(test_image>0,ones(5)) );
 imbox = regionprops(imcomps, 'BoundingBox');
 imbox = floor(imbox.BoundingBox);
 
+imbox(imbox<=0) = 1;
+width_diff = im_size(2)-(imbox(1)+imbox(3));
+if width_diff  < 0 
+    imbox(3) = imbox(3)+width_diff;
+end
+height_diff = im_size(1)-(imbox(2)+imbox(4));
+if height_diff  < 0 
+    imbox(4) = imbox(4)+height_diff;
+end
+
 if any( im_size < roi_size)    
     roi = {test_image};
 else
@@ -28,7 +38,7 @@ else
     for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
         for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)==0));
+            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
             
             if numzeros < (roi_size*roi_size)*0.05
                 roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
@@ -68,8 +78,9 @@ for r=1:length(pixel_spac(:))
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
             pixel_spac(r) = fourierFit(fourierProfile,[]); 
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+
         else
-            pixel_spac(r) = 0;
+            pixel_spac(r) = NaN;
         end
 
     end
@@ -105,7 +116,7 @@ if length(roi) > 1
     
     interped_spac_map = interped_spac_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
 
-    figure(1); imagesc(interped_spac_map); axis image;
+    figure(1); imagesc(interped_spac_map); axis image; colormap gray;
     
 end
 
