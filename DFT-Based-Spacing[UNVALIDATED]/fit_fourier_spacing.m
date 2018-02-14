@@ -12,8 +12,9 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 125; % 300
+roi_size = 300; % 125
 roi_step = floor(roi_size/4);
+interped_spac_map=[];
 
 imcomps = bwconncomp( imclose(test_image>0,ones(5)) );
 imbox = regionprops(imcomps, 'BoundingBox');
@@ -46,6 +47,13 @@ for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})
         power_spect = fftshift(fft2(roi{r}));
         power_spect = log10(abs(power_spect).^2);
+
+%         figure(100); imagesc(power_spect); colormap gray; axis image;
+%         power_spect_export = power_spect-min(power_spect(:));
+%         power_spect_export = power_spect_export./max(power_spect_export(:));
+%         power_spect_export = power_spect_export.*255;
+%         
+%         imwrite(uint8(power_spect_export),'pwr_spect.tif');
 
         rhosampling = .5;
         thetasampling = 1;

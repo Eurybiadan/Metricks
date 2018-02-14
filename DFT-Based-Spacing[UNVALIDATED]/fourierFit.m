@@ -1,13 +1,6 @@
 function [spacing, predictions, fitParams] = fourierFit(fourierProfile, prior)
 
-doplots = false;
-
-%% Start plot
-if doplots
-    thePlot = figure(1); clf; hold on
-    set(gca,'FontName','Helvetica','FontSize',14);
-    plot(fourierProfile,'k.');
-end
+doplots = true;
 
 
 %% Set up initial guess for fit parameters
@@ -15,7 +8,15 @@ end
 % Remove any nan and inf.
 fourierProfile = fourierProfile(~isnan(fourierProfile));
 fourierProfile = fourierProfile(~isinf(fourierProfile));
+fourierProfile = fourierProfile-min(fourierProfile);
 timeBase = 0:(length(fourierProfile)-1);
+
+%% Start plot
+if doplots
+    thePlot = figure(1); clf; hold on
+    set(gca,'FontName','Helvetica','FontSize',14);
+    plot(fourierProfile,'k');
+end
 
 if isempty(prior)
     
@@ -60,11 +61,12 @@ predictions = ComputeModelPreds(fitParams,timeBase);
 
 if doplots
     figure(thePlot); hold on; plot(timeBase,predictions,'g','LineWidth',2);
+    axis([0 150 0 5]);
 end
 
 
 residuals = fourierProfile-predictions;
-spacing = ceil(fitParams.shift);
+spacing = ceil(fitParams.shift)
 residuals = medfilt1(residuals,7);
 
 preval = residuals(spacing-1)-residuals(spacing);
@@ -104,7 +106,7 @@ end
 
 if doplots
     hold off;drawnow;
-    figure(2); plot(residuals)
+    figure(2);hold off; plot(residuals); hold on; plot(spacing, residuals(spacing),'r*');
 end
 
 
