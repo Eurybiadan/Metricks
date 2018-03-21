@@ -1,4 +1,4 @@
-function [spacing, predictions, R_sq_adj, fitParams] = fourierFit(fourierProfile, prior)
+function [spacing, predictions, fitParams] = fourierFit_beta(fourierProfile, prior)
 
 doplots = true;
 
@@ -11,6 +11,9 @@ fourierProfile = fourierProfile(~isinf(fourierProfile));
 fourierProfile = fourierProfile-min(fourierProfile);
 timeBase = 0:(length(fourierProfile)-1);
 
+fourierProfile = fourierProfile(2:end);
+timeBase = timeBase(2:end);
+
 %% Start plot
 if doplots
     thePlot = figure(1); clf; hold on
@@ -21,14 +24,27 @@ end
 if isempty(prior)
     
     fitParams.shift = fourierFit_v2(fourierProfile);
+    shiftlb = fitParams.shift-25;
+    shiftub = fitParams.shift+25;
+    
     % Make initial guesses
-    fitParams.scale1 = 1;
-    fitParams.decay1 = (fourierProfile(1)*.36) /...
-                        (fitParams.shift-1);
-    fitParams.offset1 = max(fourierProfile)-fitParams.scale1;
-    fitParams.scale2 =  fitParams.offset1*.3679;
-    fitParams.decay2 = (fourierProfile(fitParams.shift)*.36) /...
-                        (length(fourierProfile)-fitParams.shift);
+    fitParams.scale1 = fourierProfile(2);
+%     fitParams.decay1 = (fourierProfile(1)*.36) /...
+%                         (fitParams.shift-1);
+%     fitParams.exponent1 = exp(1);
+%     fitParams.scale2 =  fourierProfile(fitParams.shift)*.3679;
+%     fitParams.decay2 = (fourierProfile(fitParams.shift)*.36) /...
+%                         (length(fourierProfile)-fitParams.shift);
+%     fitParams.exponent2 = exp(1);
+    
+    fitParams.decay1 = -log(fourierProfile(round(fitParams.shift))./fitParams.scale1)./...
+                        (fitParams.shift);
+
+    fitParams.exponent1 = exp(1);
+    fitParams.scale2 =  fourierProfile(round(fitParams.shift));
+    fitParams.decay2 = -log(fourierProfile(140)./fourierProfile(round(fitParams.shift)))./...
+                        (140);
+    fitParams.exponent2 = exp(1);
         
 else
     fitParams = prior;
@@ -44,12 +60,13 @@ end
 
 % Set fmincon options
 options = optimset('fmincon');
-options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off','Algorithm','interior-point');
+options = optimset(options,'Diagnostics','off','Display','on','LargeScale','off',...
+                   'Algorithm','sqp', 'MaxFunEvals', 10000);
 
 x1 = ParamsToX(fitParams);
 
-vlb = [0.5 0.001 0.01 0.001  0.001  1];
-vub = [5 0.5   15   15     0.5    length(fourierProfile)-2];
+vlb = [0.5 0.001 1  1  0.001 1  shiftlb];
+vub = [5   0.5   15 10 0.5   15 shiftub];
 
 x = fmincon(@(x)FitModelErrorFunction(x,timeBase,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
 
@@ -108,19 +125,10 @@ end
 %     spacing = locs(1);
 % end
 
-% Coefficient of determination
-SSres = sum(residuals.^2);
-SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
-n = length(fourierProfile);
-p = length(x)-1;
-
-R_sq_adj = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
-
 if doplots
     hold off;drawnow;
     figure(2);hold on; plot(residuals); hold on; plot(spacing, residuals(spacing),'r*');
     hold off;
-    figure(1); title([' Adjusted R squared: ' num2str(R_sq_adj) ]);
 end
 
 
@@ -148,7 +156,7 @@ end
 %
 % Convert parameter structure to vector of parameters to search over
 function x = ParamsToX(params)
-    x = [params.scale1 params.decay1 params.offset1 params.scale2 params.decay2 params.shift];
+    x = [params.scale1 params.decay1 params.exponent1 params.scale2 params.decay2 params.exponent2 params.shift];
 end
 
 
@@ -158,10 +166,11 @@ end
 function params = XToParams(x,params)
 params.scale1 = x(1);
 params.decay1 = x(2);
-params.offset1 = x(3);
+params.exponent1 = x(3);
 params.scale2 = x(4);
 params.decay2 = x(5);
-params.shift = x(6);
+params.exponent2 = x(6);
+params.shift = x(7);
 end
 
 % preds =  ComputeModelPreds(params,t)
@@ -169,15 +178,15 @@ end
 % Compute the predictions of the model
 function fullExp = ComputeModelPreds(params,freqBase)
 
-fullExp = params.offset1 + params.scale1*exp( -params.decay1 * freqBase );
+fullExp = params.scale1*params.exponent1.^( -params.decay1 * freqBase );
 
-bottomExpLoc = find(freqBase>params.shift);
+bottomExpLoc = find(freqBase>=params.shift);
 bottomExpTime = freqBase(bottomExpLoc);
 
 % The exponential must always line up with the other exponential function's
 % value!   
-maxmatch = fullExp(bottomExpTime(1))-params.scale2;
+maxmatch = fullExp(bottomExpLoc(1))-params.scale2;
 
-fullExp(bottomExpLoc) = maxmatch + params.scale2*exp( -params.decay2 * (bottomExpTime-bottomExpTime(1)) );
+fullExp(bottomExpLoc) = maxmatch + params.scale2*params.exponent2.^( -params.decay2 * (bottomExpTime-bottomExpTime(1)) );
 
 end

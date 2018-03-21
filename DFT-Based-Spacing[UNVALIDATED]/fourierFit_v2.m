@@ -2,7 +2,7 @@ function [maxnegdiff_ind ] = fourierFit_v2(fourierProfile)
 
 
 %% Set up initial guess for fit parameters
-doplots = true;
+doplots = false;
 
 % Remove any nan and inf.
 fourierProfile = fourierProfile(~isnan(fourierProfile));
@@ -15,7 +15,7 @@ timeBase = 0:(length(fourierProfile)-1);
 if doplots
     thePlot = figure(10); clf; hold on
     set(gca,'FontName','Helvetica','FontSize',14);
-    plot(fourierProfile,'k.');
+    plot(fourierProfile,'k');
 end
 
 
@@ -102,10 +102,12 @@ for i=maxnegdiff_ind-1:-1:2
     
     if round(preval, 5)<=0 && round(thisval,5)<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
         maxnegdiff_ind=i; 
-    elseif thisval>0.05
-        figure(thePlot); hold on;
-        plot( maxnegdiff_ind, fourierProfile(maxnegdiff_ind),'r*' );
-        hold off;
+    elseif thisval>0.03
+        if doplots
+            figure(thePlot); hold on;
+            plot( maxnegdiff_ind, fourierProfile(maxnegdiff_ind),'r*' );
+            hold off;
+        end
         break;
     end
     preval = thisval;

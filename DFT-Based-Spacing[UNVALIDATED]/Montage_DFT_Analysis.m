@@ -1,14 +1,13 @@
 clear;
 close all;
 
-
-
 [thispath]=uigetdir(pwd);
 
 fNames = read_folder_contents(thispath,'tif');
 
 %% Determine the DFT distance for each image in the montage
 interped_spac_map = cell(length(fNames),1);
+interped_r2_map = cell(length(fNames),1);
 imbox = cell(length(fNames),1);
 
 parfor i=1:length(fNames)
@@ -54,6 +53,10 @@ figure(2); imagesc(blendedim); colormap gray; axis image;
 
 % Empirically determined spacing equation
 to_icd_spac = @(dft_spac) (1.5121*dft_spac.^0.6886);
+
+scaled_blendedim=to_icd_spac(blendedim.*0.45);
+scaled_blendedim = scaled_blendedim-min(scaled_blendedim(:));
+scaled_blendedim = 255.*(scaled_blendedim./ max(scaled_blendedim(:)));
 
 figure(3); imagesc( to_icd_spac(blendedim.*0.45) ); axis image;
 
