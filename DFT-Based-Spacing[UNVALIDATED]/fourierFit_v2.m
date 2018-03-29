@@ -1,4 +1,4 @@
-function [maxnegdiff_ind ] = fourierFit_v2(fourierProfile)
+function [maxnegdiff_ind, err ] = fourierFit_v2(fourierProfile)
 
 
 %% Set up initial guess for fit parameters
@@ -113,7 +113,12 @@ for i=maxnegdiff_ind-1:-1:2
     preval = thisval;
 end
 
+SSres = sum(residuals.^2);
+SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
+n = length(fourierProfile);
+p = length(x)-1;
 
+err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
 if doplots
     figure(11); plot( residuals );

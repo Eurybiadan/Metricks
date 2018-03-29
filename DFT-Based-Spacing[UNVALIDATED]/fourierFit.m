@@ -1,6 +1,6 @@
-function [spacing, predictions, R_sq_adj, fitParams] = fourierFit(fourierProfile, prior)
+function [spacing, predictions, err, fitParams] = fourierFit(fourierProfile, prior)
 
-doplots = true;
+doplots = false;
 
 
 %% Set up initial guess for fit parameters
@@ -20,7 +20,7 @@ end
 
 if isempty(prior)
     
-    fitParams.shift = fourierFit_v2(fourierProfile);
+    [fitParams.shift, firsterr] = fourierFit_v2(fourierProfile);
     % Make initial guesses
     fitParams.scale1 = 1;
     fitParams.decay1 = (fourierProfile(1)*.36) /...
@@ -70,8 +70,10 @@ spacing = ceil(fitParams.shift);
 residuals = medfilt1(residuals,3);
 
 preval = residuals(spacing-1)-residuals(spacing);
+if doplots
 figure(2);
 plot(spacing, residuals(spacing),'b*');
+end
 
 for i=spacing-1:-1:2
    
@@ -114,13 +116,19 @@ SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
 n = length(fourierProfile);
 p = length(x)-1;
 
-R_sq_adj = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
+err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
+
+% err = sum(residuals(2:end).^2);
+
+err = err/firsterr;
 
 if doplots
-    hold off;drawnow;
+    
     figure(2);hold on; plot(residuals); hold on; plot(spacing, residuals(spacing),'r*');
     hold off;
-    figure(1); title([' Adjusted R squared: ' num2str(R_sq_adj) ]);
+    figure(1); title([' Error: ' num2str(err) ' 1st stage: ' num2str(firsterr) ]);
+        hold off;
+    drawnow;
 end
 
 

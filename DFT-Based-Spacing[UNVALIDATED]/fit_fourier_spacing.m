@@ -1,4 +1,4 @@
-function [avg_pixel_spac, interped_spac_map, imbox] = fit_fourier_spacing(test_image)
+function [avg_pixel_spac, interped_spac_map, avg_err_map, imbox] = fit_fourier_spacing(test_image)
 
 
 if ~exist('test_image','var')
@@ -12,7 +12,7 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 300; %125;
+roi_size = 125; %300;
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
 
@@ -38,7 +38,7 @@ else
     for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
         for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
+            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=5));
             
             if numzeros < (roi_size*roi_size)*0.05
                 roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
@@ -51,6 +51,7 @@ end
 
 numind = size(roi,1)*size(roi,2);
 pixel_spac = nan(size(roi));
+err = nan(size(roi));
 
   
 for r=1:length(pixel_spac(:))
@@ -62,8 +63,8 @@ for r=1:length(pixel_spac(:))
 %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));
 %         power_spect_export = power_spect_export.*255;
-%         
-%         imwrite(uint8(power_spect_export),'pwr_spect.tif');
+% %         
+%         imwrite(uint8(power_spect_export),['pwr_spect ' num2str(r) '.tif']);
 
         rhosampling = .5;
         thetasampling = 1;
@@ -76,9 +77,8 @@ for r=1:length(pixel_spac(:))
         fourierProfile = mean(polarroi);
 
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
-            pixel_spac(r) = fourierFit(fourierProfile,[]); 
+            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[]); 
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
-
         else
             pixel_spac(r) = NaN;
         end
@@ -89,35 +89,55 @@ end
 avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
 std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
 
+
+
 %% If we've sampled over the region, then create the heat map
 if length(roi) > 1
     interped_spac_map=zeros(im_size);
+    interped_err_map=zeros(im_size);
+    interped_corrected_err_map=zeros(im_size);
     sum_map=zeros(im_size);
     
     for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
         for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-            if ~isnan(pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1))
+            if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
+                
+                thiserr = err(round(i/roi_step)+1,round(j/roi_step)+1);
+                
+                interped_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;
+                
+                % Normalize the error based on the peak value
+%                 thiserr = thiserr-min(err(:));
+%                 thiserr = thiserr./max(err(:));
+%                 thiserr = 1-thiserr;
+                
                 thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
                 
-                if thisspac < avg_pixel_spac+(2*std_pixel_spac) % Prevent any large swings.
-                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thisspac;
+%                 if thisspac < avg_pixel_spac+(2*std_pixel_spac) % Prevent any large swings.
+                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thisspac*thiserr;
+                    interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;
                     sum_map(i:i+roi_size-1, j:j+roi_size-1) = sum_map(i:i+roi_size-1, j:j+roi_size-1) + 1;
-                end
+%                 end
+            else
+
             end
         end
     end
     
-    interped_spac_map = interped_spac_map./sum_map;
+    interped_spac_map = interped_spac_map./interped_corrected_err_map;
+    avg_err_map = interped_err_map./sum_map;
     
 %     [X,Y]=meshgrid( 1:roi_step:(size(test_image,2)-roi_size-1), 1:roi_step:(size(test_image,1)-roi_size-1));
 %     [Xq,Yq]=meshgrid( 1:(size(test_image,2)-roi_size-1), 1:(size(test_image,1)-roi_size-1));
 %     interped_spac_map = interp2( X,Y, pixel_spac, Xq, Yq);
     
     interped_spac_map = interped_spac_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
+    avg_err_map = avg_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
 
     figure(1); imagesc(interped_spac_map); axis image; colormap gray;
-    
+    figure(2); imagesc(avg_err_map); axis image; colormap gray;
+    figure(3); imagesc(sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) )); axis image; colormap gray;
 end
 
 
