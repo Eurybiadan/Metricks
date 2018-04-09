@@ -12,7 +12,7 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 125; %300;
+roi_size = 125; %300; %
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
 

@@ -1,6 +1,6 @@
 function [spacing, predictions, err, fitParams] = fourierFit(fourierProfile, prior)
 
-doplots = false;
+doplots = true;
 
 
 %% Set up initial guess for fit parameters
@@ -120,6 +120,8 @@ err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
 % err = sum(residuals(2:end).^2);
 
+% spacing_ratio = (length(fourierProfile)./spacing);
+
 err = err/firsterr;
 
 if doplots
@@ -129,6 +131,7 @@ if doplots
     figure(1); title([' Error: ' num2str(err) ' 1st stage: ' num2str(firsterr) ]);
         hold off;
     drawnow;
+    pause;
 end
 
 
