@@ -137,7 +137,7 @@ for i=1:size(fnamelist,1)
                 clipped_coords =coordclip(coords,[diffwidth  width-diffwidth],...
                                                  [diffheight height-diffheight],'i');
 
-                clip_start_end = [diffheight height-diffheight diffwidth  width-diffwidth];
+                clip_start_end = [diffwidth  width-diffwidth diffheight height-diffheight];
             else
 
                 width  = max(coords(:,1)) - min(coords(:,1));
@@ -157,7 +157,7 @@ for i=1:size(fnamelist,1)
                 clipped_coords =coordclip(coords,[min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth],...
                                                  [min(coords(:,2))+diffheight max(coords(:,2))-diffheight],'i');
 
-                clip_start_end = [min(coords(:,2))+diffheight max(coords(:,2))-diffheight min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth];
+                clip_start_end = [min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth min(coords(:,2))+diffheight max(coords(:,2))-diffheight];
             end
 
 
