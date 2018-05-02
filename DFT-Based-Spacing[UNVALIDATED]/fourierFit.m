@@ -1,6 +1,6 @@
 function [spacing, predictions, err, fitParams] = fourierFit(fourierProfile, prior)
 
-doplots = true;
+doplots = false;
 
 
 %% Set up initial guess for fit parameters
@@ -10,6 +10,8 @@ fourierProfile = fourierProfile(~isnan(fourierProfile));
 fourierProfile = fourierProfile(~isinf(fourierProfile));
 fourierProfile = fourierProfile-min(fourierProfile);
 timeBase = 0:(length(fourierProfile)-1);
+
+fourierSampling =(0:length(fourierProfile)-1)/(size(fourierProfile,2)*2);
 
 %% Start plot
 if doplots
@@ -36,9 +38,9 @@ end
 
 % Add initial guess to the plot
 predictions0 = ComputeModelPreds(fitParams,timeBase);
-if doplots
-    figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
-end
+% if doplots
+%     figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
+% end
 
 %% Fit
 
@@ -92,23 +94,75 @@ for i=spacing-1:-1:2
     preval = thisval;
 end
 
-% [pks, locs]= findpeaks( residuals(1:ceil(spacing)) );
-% 
-% % If the last point is rising, then take add it to our list.
-% if residuals(ceil(spacing))-residuals(ceil(spacing-1)) > 0
-%     pks = [pks residuals(ceil(spacing))];
-%     locs = ceil(spacing);
-% end
-% 
-% if ~isempty(locs)
-%     
-%     pks = fliplr(pks);
-%     locs = fliplr(locs);
-%     if doplots
-%         plot(locs(1), fourierProfile(locs(1)),'r*')
-%     end
-%     spacing = locs(1);
-% end
+
+% Determine Sharpness of the peak as an error measurment
+lowfreqbound=spacing;
+highfreqbound=spacing;
+for i=spacing:-1:2
+   
+    thisval = residuals(i-1)-residuals(i);
+    
+    if thisval<=0 
+        lowfreqbound=i; 
+
+    elseif thisval>0
+        if doplots
+            figure(2); hold on;
+            plot(lowfreqbound, residuals(lowfreqbound),'g*')
+        end
+        break;
+    end
+    preval = thisval;
+end
+
+for i=spacing:1:length(fourierProfile)
+   
+    thisval = residuals(i+1)-residuals(i);
+    
+    if thisval<=0 
+        highfreqbound=i; 
+
+    elseif thisval>0
+        if doplots
+            figure(2); hold on;
+            plot(highfreqbound, residuals(highfreqbound),'g*')
+        end
+        break;
+    end
+    preval = thisval;
+end
+
+if lowfreqbound==spacing && highfreqbound~=spacing
+    
+    highheight = (residuals(spacing) - residuals(highfreqbound));
+    highrun = fourierSampling(highfreqbound)-fourierSampling(spacing);
+
+    heightdistinct = highheight./highrun;
+    
+elseif highfreqbound==spacing && lowfreqbound~=spacing
+    
+    lowheight = (residuals(spacing) - residuals(lowfreqbound));
+    lowrun = fourierSampling(spacing)-fourierSampling(lowfreqbound);
+
+    heightdistinct = lowheight./lowrun;
+    
+elseif highfreqbound~=spacing && lowfreqbound~=spacing
+    % Find the distinctness of our peak based on the average height of the two
+    % sides of the triangle
+    lowheight = residuals(spacing) - residuals(lowfreqbound);
+    highheight = residuals(spacing) - residuals(highfreqbound);
+    
+    lowrun = fourierSampling(spacing)-fourierSampling(lowfreqbound);
+    highrun = fourierSampling(highfreqbound)-fourierSampling(spacing);
+
+    avgheight = (lowheight+highheight)/2;
+    avgrun = (lowrun+highrun)/2;
+
+    heightdistinct = avgheight./avgrun;
+else
+    heightdistinct=1;
+end
+
 
 % Coefficient of determination
 SSres = sum(residuals.^2);
@@ -122,7 +176,7 @@ err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
 % spacing_ratio = (length(fourierProfile)./spacing);
 
-err = err/firsterr;
+err =  (err/firsterr);
 
 if doplots
     
@@ -131,8 +185,9 @@ if doplots
     figure(1); title([' Error: ' num2str(err) ' 1st stage: ' num2str(firsterr) ]);
         hold off;
     drawnow;
-    pause;
+%     pause;
 end
+
 
 
 end
