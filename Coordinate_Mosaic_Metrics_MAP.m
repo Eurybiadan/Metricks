@@ -204,7 +204,12 @@ for i=1:size(fnamelist,1)
             interped_map = interped_map./sum_map;
 
             dispfig=figure(1); imagesc(interped_map); axis image; colorbar;
-            title(['Minimum value: ' num2str(min(interped_map(:))) ' Maximum value: ' num2str(max(interped_map(:)))])
+            [minval, minind] = min(interped_map(:));
+            [maxval, maxind] = max(interped_map(:));
+            
+            [minrow,mincol]=ind2sub(size(interped_map),minind);
+            [maxrow,maxcol]=ind2sub(size(interped_map),maxind);
+            title(['Minimum value: ' num2str(minval) '(' num2str(mincol) ',' num2str(minrow) ') Maximum value: ' num2str(maxval) '(' num2str(maxcol) ',' num2str(maxrow) ')'])
             
             result_fname = [getparent(basepath,'short') '_density_bound_coordmap_' date '_' num2str(WINDOW_SIZE) '_' metriclist{selectedmetric}];
             
