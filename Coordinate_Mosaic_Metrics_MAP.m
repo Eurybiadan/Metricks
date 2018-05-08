@@ -169,14 +169,23 @@ for i=1:size(fnamelist,1)
             end
             toc;
             
-            %%
+            %% Map output
+            metriclist = fieldnames(statistics{1});
+            [selectedmetric, oked] = listdlg('PromptString','Select map metric:',...
+                                          'SelectionMode','single',...
+                                          'ListString',metriclist);
+            
+            if oked == 0
+                error('Cancelled by user.');
+            end
+                                      
             interped_map=zeros([height width]);
             sum_map=zeros([height width]);
 
             
             for c=1:size(coords,1)
 
-                    thisval = statistics{c}.Density_Bound; 
+                    thisval = statistics{c}.(metriclist{selectedmetric}); 
 
                     rowrange = round(coords(c,2)-(pixelwindowsize/2):coords(c,2)+(pixelwindowsize/2));
                     colrange = round(coords(c,1)-(pixelwindowsize/2):coords(c,1)+(pixelwindowsize/2));
@@ -195,14 +204,16 @@ for i=1:size(fnamelist,1)
             interped_map = interped_map./sum_map;
 
             dispfig=figure(1); imagesc(interped_map); axis image; colorbar;
+            title(['Minimum value: ' num2str(min(interped_map(:))) ' Maximum value: ' num2str(max(interped_map(:)))])
             
-            result_fname = [getparent(basepath,'short') '_density_bound_coordmap_' date '_' num2str(WINDOW_SIZE) selectedunit '.png'];
+            result_fname = [getparent(basepath,'short') '_density_bound_coordmap_' date '_' num2str(WINDOW_SIZE) '_' metriclist{selectedmetric}];
             
-            saveas(gcf,fullfile(basepath,'Results', result_fname));
+            saveas(gcf,fullfile(basepath,'Results', [result_fname '_fig.png']));
+            saveas(gcf,fullfile(basepath,'Results', [result_fname '_fig.svg']));
             
             scaled_map = interped_map-min(interped_map(:));
             scaled_map = uint8(255*scaled_map./max(scaled_map(:)));
-            imwrite(scaled_map, parula(256), fullfile(basepath,'Results', result_fname))
+            imwrite(scaled_map, parula(256), fullfile(basepath,'Results', [result_fname '_raw.tif']))
 
             %%
         end
