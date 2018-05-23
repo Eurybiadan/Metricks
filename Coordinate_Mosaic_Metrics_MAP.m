@@ -136,10 +136,34 @@ for i=1:size(fnamelist,1)
             statistics = cell(size(coords,1),1);
             
             tic;
+            % Determine the window size dynamically for each coordinate
+            pixelwindowsize = zeros(size(coords,1),1)
+            
+            parfor c=1:size(coords,1)
+            
+                thiswindowsize=0;
+                clipped_coords=[];
+                while length(clipped_coords) < 100
+                    thiswindowsize = thiswindowsize+1;
+                    rowborders = ([coords(c,2)-(thiswindowsize/2) coords(c,2)+(thiswindowsize/2)]);
+                    colborders = ([coords(c,1)-(thiswindowsize/2) coords(c,1)+(thiswindowsize/2)]);
+
+                    rowborders(rowborders<1) =1;
+                    colborders(colborders<1) =1;
+                    rowborders(rowborders>maxrowval) =maxrowval;
+                    colborders(colborders>maxcolval) =maxcolval;
+
+                    clipped_coords =coordclip(coords,colborders,...
+                                                     rowborders,'i');
+                end
+%                 thiswindowsize*scaleval
+                pixelwindowsize(c) = thiswindowsize;
+            end
+            % Actually calculate the statistics
             parfor c=1:size(coords,1)
                 
-                rowborders = round([coords(c,2)-(pixelwindowsize/2) coords(c,2)+(pixelwindowsize/2)]);
-                colborders = round([coords(c,1)-(pixelwindowsize/2) coords(c,1)+(pixelwindowsize/2)]);
+                rowborders = round([coords(c,2)-(pixelwindowsize(c)/2) coords(c,2)+(pixelwindowsize(c)/2)]);
+                colborders = round([coords(c,1)-(pixelwindowsize(c)/2) coords(c,1)+(pixelwindowsize(c)/2)]);
 
                 rowborders(rowborders<1) =1;
                 colborders(colborders<1) =1;
@@ -153,6 +177,7 @@ for i=1:size(fnamelist,1)
 
                 statistics{c} = determine_mosaic_stats( clipped_coords, scaleval, selectedunit, clip_start_end ,[colborders(2)-colborders(1) rowborders(2)-rowborders(1)], 4 );
 
+                statistics{c}.Window_Size = pixelwindowsize(c)*scaleval;
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 %% Determine FFT Power Spectra %%
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
