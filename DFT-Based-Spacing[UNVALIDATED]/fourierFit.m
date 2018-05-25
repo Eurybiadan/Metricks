@@ -132,19 +132,21 @@ for i=spacing:1:length(fourierProfile)
     preval = thisval;
 end
 
+maxamplitude = (max(residuals)-min(residuals));
+
 if lowfreqbound==spacing && highfreqbound~=spacing
     
     highheight = (residuals(spacing) - residuals(highfreqbound));
     highrun = fourierSampling(highfreqbound)-fourierSampling(spacing);
 
-    heightdistinct = highheight./highrun;
+    heightdistinct = highheight./maxamplitude;
     
 elseif highfreqbound==spacing && lowfreqbound~=spacing
     
     lowheight = (residuals(spacing) - residuals(lowfreqbound));
     lowrun = fourierSampling(spacing)-fourierSampling(lowfreqbound);
 
-    heightdistinct = lowheight./lowrun;
+    heightdistinct = lowheight./maxamplitude;
     
 elseif highfreqbound~=spacing && lowfreqbound~=spacing
     % Find the distinctness of our peak based on the average height of the two
@@ -156,9 +158,9 @@ elseif highfreqbound~=spacing && lowfreqbound~=spacing
     highrun = fourierSampling(highfreqbound)-fourierSampling(spacing);
 
     avgheight = (lowheight+highheight)/2;
-    avgrun = (lowrun+highrun)/2;
+%     avgrun = (lowrun+highrun)/2;
 
-    heightdistinct = avgheight./avgrun;
+    heightdistinct = max([lowheight highheight])./maxamplitude;
 else
     heightdistinct=1;
 end
@@ -176,7 +178,7 @@ err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
 % spacing_ratio = (length(fourierProfile)./spacing);
 
-err =  (err/firsterr);
+err =  heightdistinct*(err/firsterr);
 
 if doplots
     

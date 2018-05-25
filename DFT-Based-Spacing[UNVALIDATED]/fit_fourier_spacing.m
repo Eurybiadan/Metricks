@@ -1,4 +1,4 @@
-function [avg_pixel_spac, interped_spac_map, avg_err_map, imbox] = fit_fourier_spacing(test_image)
+function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image)
 
 
 if ~exist('test_image','var')
@@ -115,8 +115,8 @@ if length(roi) > 1
                 thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
                 
 %                 if thisspac < avg_pixel_spac+(2*std_pixel_spac) % Prevent any large swings.
-                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thisspac*thiserr;
-                    interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;
+                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thisspac;
+%                     interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;
                     sum_map(i:i+roi_size-1, j:j+roi_size-1) = sum_map(i:i+roi_size-1, j:j+roi_size-1) + 1;
 %                 end
             else
@@ -125,19 +125,19 @@ if length(roi) > 1
         end
     end
     
-    interped_spac_map = interped_spac_map./interped_corrected_err_map;
-    avg_err_map = interped_err_map./sum_map;
+    
     
 %     [X,Y]=meshgrid( 1:roi_step:(size(test_image,2)-roi_size-1), 1:roi_step:(size(test_image,1)-roi_size-1));
 %     [Xq,Yq]=meshgrid( 1:(size(test_image,2)-roi_size-1), 1:(size(test_image,1)-roi_size-1));
 %     interped_spac_map = interp2( X,Y, pixel_spac, Xq, Yq);
     
     interped_spac_map = interped_spac_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
-    avg_err_map = avg_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
-
-    figure(1); imagesc(interped_spac_map); axis image; colormap gray;
-    figure(2); imagesc(avg_err_map); axis image; colormap gray;
-    figure(3); imagesc(sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) )); axis image; colormap gray;
+    interped_err_map = interped_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
+    sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
+    
+    figure(1); imagesc(interped_spac_map./sum_map); axis image; colormap gray;
+    figure(2); imagesc(interped_err_map./sum_map); axis image; colormap gray;
+    figure(3); imagesc(sum_map); axis image; colormap gray;
 end
 
 
