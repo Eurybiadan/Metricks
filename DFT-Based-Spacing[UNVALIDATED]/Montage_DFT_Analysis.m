@@ -54,14 +54,21 @@ for i=1:length(imbox)
 end
 
 
-blendederrim = blendederrim./sum_map;
-blendedim = blendedim./sum_map; % This combination is incorrect because we're averaging averages!
 
+blendedim = blendedim./blendederrim; % This combination is incorrect because we're averaging averages!
+blendederrim = blendederrim./sum_map;
 
 %% Display the results.
-figure(1); imagesc(sum_map); colormap gray; axis image;
-figure(2); imagesc(blendedim); colormap gray; axis image;
-figure(3); imagesc(blendederrim); axis image;
+figure(1); imagesc(sum_map); axis image; colorbar;
+
+scaled_spacing = (blendedim.*0.49)-min(blendedim(:).*0.49);
+scaled_spacing = 255.*(scaled_spacing./ max(scaled_spacing(:)) );
+
+figure(2); imagesc(blendedim.*0.49); axis image; colorbar;
+
+scaled_error = 255.*(blendederrim);
+
+figure(3); imagesc(blendederrim); axis image; colorbar;
 
 %%
 % Empirically determined spacing equation
@@ -74,10 +81,13 @@ figure(3); imagesc(blendederrim); axis image;
 % figure(4); imagesc( to_icd_spac(blendedim.*0.45) ); axis image;
 
 % To density, assuming perfect packing
-row_spac = to_icd_spac(blendedim.*0.45).* (sqrt(3)/ (2));
+row_spac = (blendedim.*0.49).* (sqrt(3)/ (2));
 
 density_map = (1000^2).*(sqrt(3))./(2 .* row_spac.^2);
 
-figure(5); imagesc( density_map ); axis image;
+scaled_density = density_map-min(density_map(:));
+scaled_density = 255.*(scaled_density./ max(scaled_density(:)) );
 
+figure(5); imagesc( density_map ); axis image;
+%%
 save( fullfile(thispath,'Fouriest.mat') );

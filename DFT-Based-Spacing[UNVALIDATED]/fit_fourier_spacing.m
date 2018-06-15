@@ -12,7 +12,7 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 125; %300; %
+roi_size = 125;%300; %125
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
 
@@ -88,7 +88,8 @@ end
 
 avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
 std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
-
+interped_spac_map = avg_pixel_spac;
+interped_err_map = err;
 
 
 %% If we've sampled over the region, then create the heat map
@@ -115,7 +116,7 @@ if length(roi) > 1
                 thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
                 
 %                 if thisspac < avg_pixel_spac+(2*std_pixel_spac) % Prevent any large swings.
-                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thisspac;
+                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr*thisspac;
 %                     interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;
                     sum_map(i:i+roi_size-1, j:j+roi_size-1) = sum_map(i:i+roi_size-1, j:j+roi_size-1) + 1;
 %                 end

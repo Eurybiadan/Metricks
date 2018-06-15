@@ -178,7 +178,7 @@ err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
 % spacing_ratio = (length(fourierProfile)./spacing);
 
-err =  heightdistinct*(err/firsterr);
+err =  heightdistinct; %(err/firsterr); 
 
 if doplots
     
