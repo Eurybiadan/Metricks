@@ -55,18 +55,22 @@ end
 
 
 
-blendedim = blendedim./blendederrim; % This combination is incorrect because we're averaging averages!
+blendedim = blendedim./blendederrim;
 blendederrim = blendederrim./sum_map;
-
 %% Display the results.
+threshold = mean(blendederrim(:),'omitnan')-2*std(blendederrim(:),'omitnan');
+threshold_mask = (blendederrim>threshold);
+
 figure(1); imagesc(sum_map); axis image; colorbar;
 
-scaled_spacing = (blendedim.*0.49)-min(blendedim(:).*0.49);
+scaled_spacing = (blendedim.*0.4567)-min(blendedim(:).*0.4567);
 scaled_spacing = 255.*(scaled_spacing./ max(scaled_spacing(:)) );
+% imwrite( uint8(scaled_error.*threshold_mask), parula(256), '11028_OD_thresh_montage_spacing.tif')
 
-figure(2); imagesc(blendedim.*0.49); axis image; colorbar;
+figure(2); imagesc( (blendedim.*0.4567).*threshold_mask ); axis image; colorbar;
 
 scaled_error = 255.*(blendederrim);
+% imwrite( uint8(scaled_error.*threshold_mask), parula(256),'11028_OD_thresh_montage_err.tif')
 
 figure(3); imagesc(blendederrim); axis image; colorbar;
 
@@ -81,13 +85,19 @@ figure(3); imagesc(blendederrim); axis image; colorbar;
 % figure(4); imagesc( to_icd_spac(blendedim.*0.45) ); axis image;
 
 % To density, assuming perfect packing
-row_spac = (blendedim.*0.49).* (sqrt(3)/ (2));
+% blendedim(4312,4410)*0.4567
+spac = sqrt(3)./ (2*(blendedim*0.4567).^2);
 
-density_map = (1000^2).*(sqrt(3))./(2 .* row_spac.^2);
+density_map = (1000^2).*spac;
+
+% density_map(4312,4410)
 
 scaled_density = density_map-min(density_map(:));
 scaled_density = 255.*(scaled_density./ max(scaled_density(:)) );
 
-figure(5); imagesc( density_map ); axis image;
+figure(5); imagesc( density_map.*threshold_mask ); axis image;
+
+% imwrite( uint8(scaled_density.*threshold_mask),parula(256),'11028_OD_thresh_montage_density.tif')
+
 %%
 save( fullfile(thispath,'Fouriest.mat') );

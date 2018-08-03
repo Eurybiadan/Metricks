@@ -136,7 +136,7 @@ if length(roi) > 1
     interped_err_map = interped_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     
-    figure(1); imagesc(interped_spac_map./sum_map); axis image; colormap gray;
+    figure(1); imagesc(interped_spac_map./interped_err_map); axis image; colormap gray;
     figure(2); imagesc(interped_err_map./sum_map); axis image; colormap gray;
     figure(3); imagesc(sum_map); axis image; colormap gray;
 end
