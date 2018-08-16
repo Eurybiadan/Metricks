@@ -25,51 +25,53 @@ regularity_nn_index = mean_nn_dist/std(minval.*scale);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Determine Voronoi Cell Area %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% disp('VCAR');
-% tic
-[V,C] = voronoin(coords,{'QJ'}); % Returns the vertices of the Voronoi edges in VX and VY so that plot(VX,VY,'-',X,Y,'.')
-% cellvert = [];
-% coords_bound=zeros(size(coords));
 sixsided=0;
-bound = zeros(length(C),1);
-cellarea = zeros(length(C),1);
-numedges = zeros(length(C),1);
+bound = zeros(size(coords,1),1);
+cellarea = zeros(size(coords,1),1);
+numedges = zeros(size(coords,1),1);
 coords_bound=[];
-% figure(10); hold on;
-for i=1:length(C)
-   
-    vertices=V(C{i},:);
-    
-    if (all(C{i}~=1)  && all(vertices(:,1)<bounds(2)) && all(vertices(:,2)<bounds(4)) ... % [xmin xmax ymin ymax] 
-                     && all(vertices(:,1)>bounds(1)) && all(vertices(:,2)>bounds(3))) 
 
-        cellarea(i) = polyarea(V(C{i},1),V(C{i},2));
-        
-        % Code to display number of sides for each voronoi domain
-        numedges(i)=size(V(C{i},1),1);
-        switch(numedges(i))
-%             case 4
-%                 color = 'm';
-%             case 5
-%                 color = 'c';
-            case 6
-%                 color = 'g';
-              sixsided = sixsided+1;
-%             case 7
-%                 color = 'y';
-%             case 8
-%                 color = 'r';
-%             case 9
-%                 color = 'b';
+if size(coords,1) > 2
+
+    [V,C] = voronoin(coords,{'QJ'}); % Returns the vertices of the Voronoi edges in VX and VY so that plot(VX,VY,'-',X,Y,'.')
+
+    % figure(10); hold on;
+    for i=1:length(C)
+
+        vertices=V(C{i},:);
+
+        if (all(C{i}~=1)  && all(vertices(:,1)<bounds(2)) && all(vertices(:,2)<bounds(4)) ... % [xmin xmax ymin ymax] 
+                         && all(vertices(:,1)>bounds(1)) && all(vertices(:,2)>bounds(3))) 
+
+            cellarea(i) = polyarea(V(C{i},1),V(C{i},2));
+
+            % Code to display number of sides for each voronoi domain
+            numedges(i)=size(V(C{i},1),1);
+            switch(numedges(i))
+    %             case 4
+    %                 color = 'm';
+    %             case 5
+    %                 color = 'c';
+                case 6
+    %                 color = 'g';
+                  sixsided = sixsided+1;
+    %             case 7
+    %                 color = 'y';
+    %             case 8
+    %                 color = 'r';
+    %             case 9
+    %                 color = 'b';
+            end
+    %         figure(10);
+    %         patch(V(C{i},1),V(C{i},2),ones(size(V(C{i},1))),'FaceColor',color);
+    %         hold on;
+
+            coords_bound(i,:) = coords(i,:);
+            bound(i) = 1;
         end
-%         figure(10);
-%         patch(V(C{i},1),V(C{i},2),ones(size(V(C{i},1))),'FaceColor',color);
-%         hold on;
-        
-        coords_bound(i,:) = coords(i,:);
-        bound(i) = 1;
+
+
     end
-    
 
 end
 % hold off;
@@ -122,16 +124,12 @@ else
     density_bound = 0;
 end
 
-% waitbar(0.6, wb, 'Determining DFT-derived spacing');
 
-% waitbar(0.7,wb, 'Determining Inter-cell distance');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Determine Inter-Cell Distance %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% disp('ICD');
-% tic
 
-dt = DelaunayTri(coords);
+
 m=1;
 inter_cell_dist = [];
 max_cell_dist = [];
@@ -139,41 +137,48 @@ max_cell_dist = [];
 correct_inter_cell_dist = zeros(size(coords,1),1);
 correct_max_cell_dist = zeros(size(coords,1),1);
 correct_nn_cell_dist = zeros(size(coords,1),1);
-% Find all instances of each coordinate point
-for k=1 : size(coords,1)
-   
+if size(coords,1) > 2
+    dt = DelaunayTri(coords);
 
-    [i j] =find(dt.Triangulation == k);
+    % Find all instances of each coordinate point
+    for k=1 : size(coords,1)
 
-    conn_ind = dt.Triangulation(i,:);
 
-    coord_row = unique(conn_ind( conn_ind ~= k)); % Find all of the unique coordinate points that isn't the "center" coordinate
+        [i j] =find(dt.Triangulation == k);
 
-    if(size(i,1)~=1)
-        coord_row = [k; coord_row]; % Add the "center" to the top, so we know the order for the distances
-    else
-        coord_row = [k; coord_row']; 
+        conn_ind = dt.Triangulation(i,:);
+
+        coord_row = unique(conn_ind( conn_ind ~= k)); % Find all of the unique coordinate points that isn't the "center" coordinate
+
+        if(size(i,1)~=1)
+            coord_row = [k; coord_row]; % Add the "center" to the top, so we know the order for the distances
+        else
+            coord_row = [k; coord_row']; 
+        end
+
+        cell_dist = squareform(pdist([coords(coord_row,1) coords(coord_row,2)]));
+
+        if bound(k) == 1 % If its bound, then we've flagged it as such, and can use it in the triangulation
+            % Only take the first row because that is the cell of interest's
+            % relative distance to its neighboring cells
+            correct_inter_cell_dist(m) = scale*(sum(cell_dist(1,:)) / (length(cell_dist(1,:))-1));
+            correct_max_cell_dist(m)   = scale*max(cell_dist(1,:));
+            correct_nn_cell_dist(m)    = scale*min(cell_dist(1,2:end));
+    %         figure(1); triplot(dt); hold on; plot(coords(coord_row,1),coords(coord_row,2),'r.'); plot(coords(k,1),coords(k,2),'g.');  hold off;
+            m = m+1;
+        end
+
+        inter_cell_dist = [inter_cell_dist; scale*(sum(cell_dist(1,:)) / length(cell_dist(1,:))-1)];
+        max_cell_dist   = [max_cell_dist; scale*max(cell_dist(1,:))];    
+
     end
-
-    cell_dist = squareform(pdist([coords(coord_row,1) coords(coord_row,2)]));
-        
-    if bound(k) == 1 % If its bound, then we've flagged it as such, and can use it in the triangulation
-        % Only take the first row because that is the cell of interest's
-        % relative distance to its neighboring cells
-        correct_inter_cell_dist(m) = scale*(sum(cell_dist(1,:)) / (length(cell_dist(1,:))-1));
-        correct_max_cell_dist(m)   = scale*max(cell_dist(1,:));
-        correct_nn_cell_dist(m)    = scale*min(cell_dist(1,2:end));
-%         figure(1); triplot(dt); hold on; plot(coords(coord_row,1),coords(coord_row,2),'r.'); plot(coords(k,1),coords(k,2),'g.');  hold off;
-        m = m+1;
-    end
-    
-    inter_cell_dist = [inter_cell_dist; scale*(sum(cell_dist(1,:)) / length(cell_dist(1,:))-1)];
-    max_cell_dist   = [max_cell_dist; scale*max(cell_dist(1,:))];    
-    
+    m = m-1;
+    mean_inter_cell_dist = mean(inter_cell_dist);    
+    mean_max_cell_dist   = mean( max_cell_dist );
+else
+    mean_inter_cell_dist = scale*pdist(coords);
+    mean_max_cell_dist = mean_inter_cell_dist;
 end
-m = m-1;
-mean_inter_cell_dist = mean(inter_cell_dist);    
-mean_max_cell_dist   = mean( max_cell_dist );
     
 if ~isempty(coords_bound)
     mean_correct_nn_dist = mean( correct_nn_cell_dist(1:m) );
@@ -187,11 +192,11 @@ else
     mean_correct_inter_cell_dist=0;
     mean_correct_max_cell_dist=0;
 end
-% toc
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Determine Density Recovery Profile %% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% waitbar(0.8,wb, 'Determining DRP');
+
 
 [ density_per_rad, um_drp_sizes, drp_spac]=calculate_DRP(coords, [bounds(1:2); bounds(3:4)], scale, pixel_density, reliability );
 

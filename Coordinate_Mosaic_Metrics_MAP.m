@@ -7,7 +7,7 @@
 clear;
 close all force;
 
-WINDOW_SIZE = 35;
+WINDOW_SIZE = 55;
 
 %% Crop the coordinates/image to this size in [scale], and calculate the area from it.
 % If left empty, it uses the size of the image.
@@ -115,51 +115,57 @@ for i=1:size(fnamelist,1)
                 continue;
             end
 
-            pixelwindowsize = WINDOW_SIZE/scaleval;
-            
             if exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')
 
-                im = imread( fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']));
+                    im = imread( fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']));
 
-                width = size(im,2);
-                height = size(im,1);
-                maxrowval = height;
-                maxcolval = width;
-            else
+                    width = size(im,2);
+                    height = size(im,1);
+                    maxrowval = height;
+                    maxcolval = width;
+                else
 
-                width  = max(coords(:,1)) - min(coords(:,1));
-                height = max(coords(:,2)) - min(coords(:,2));
-                maxrowval = max(coords(:,2));
-                maxcolval = max(coords(:,1));
-            end
-            
-            statistics = cell(size(coords,1),1);
-            
-            tic;
-            % Determine the window size dynamically for each coordinate
-            pixelwindowsize = zeros(size(coords,1),1)
-            
-            parfor c=1:size(coords,1)
-            
-                thiswindowsize=0;
-                clipped_coords=[];
-                while length(clipped_coords) < 100
-                    thiswindowsize = thiswindowsize+1;
-                    rowborders = ([coords(c,2)-(thiswindowsize/2) coords(c,2)+(thiswindowsize/2)]);
-                    colborders = ([coords(c,1)-(thiswindowsize/2) coords(c,1)+(thiswindowsize/2)]);
-
-                    rowborders(rowborders<1) =1;
-                    colborders(colborders<1) =1;
-                    rowborders(rowborders>maxrowval) =maxrowval;
-                    colborders(colborders>maxcolval) =maxcolval;
-
-                    clipped_coords =coordclip(coords,colborders,...
-                                                     rowborders,'i');
+                    coords = coords-min(coords)+1;
+                    width  = ceil(max(coords(:,1)));
+                    height = ceil(max(coords(:,2)));
+                    maxrowval = max(coords(:,2));
+                    maxcolval = max(coords(:,1));
                 end
-%                 thiswindowsize*scaleval
-                pixelwindowsize(c) = thiswindowsize;
+
+                statistics = cell(size(coords,1),1);
+            
+            if ~isempty(WINDOW_SIZE)
+                
+                pixelwindowsize = repmat(WINDOW_SIZE/scaleval,size(coords,1),1);
+                
+            else
+                
+                % Determine the window size dynamically for each coordinate
+                pixelwindowsize = zeros(size(coords,1),1);
+
+                parfor c=1:size(coords,1)
+
+                    thiswindowsize=0;
+                    clipped_coords=[];
+                    while length(clipped_coords) < 100 || length(clipped_coords) <= size(coords,1)
+                        thiswindowsize = thiswindowsize+1;
+                        rowborders = ([coords(c,2)-(thiswindowsize/2) coords(c,2)+(thiswindowsize/2)]);
+                        colborders = ([coords(c,1)-(thiswindowsize/2) coords(c,1)+(thiswindowsize/2)]);
+
+                        rowborders(rowborders<1) =1;
+                        colborders(colborders<1) =1;
+                        rowborders(rowborders>maxrowval) =maxrowval;
+                        colborders(colborders>maxcolval) =maxcolval;
+
+                        clipped_coords =coordclip(coords,colborders,...
+                                                         rowborders,'i');
+                    end
+
+                    pixelwindowsize(c) = thiswindowsize;
+                end
             end
-            % Actually calculate the statistics
+            
+            %% Actually calculate the statistics
             parfor c=1:size(coords,1)
                 
                 rowborders = round([coords(c,2)-(pixelwindowsize(c)/2) coords(c,2)+(pixelwindowsize(c)/2)]);
@@ -174,12 +180,11 @@ for i=1:size(fnamelist,1)
                                                  rowborders,'i');
                 % [xmin xmax ymin ymax] 
                 clip_start_end = [colborders rowborders];
-
+                
                 statistics{c} = determine_mosaic_stats( clipped_coords, scaleval, selectedunit, clip_start_end ,[colborders(2)-colborders(1) rowborders(2)-rowborders(1)], 4 );
-
                 statistics{c}.Window_Size = pixelwindowsize(c)*scaleval;
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                %% Determine FFT Power Spectra %%
+                % Determine FFT Power Spectra %%
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 if (exist('fit_fourier_spacing.m','file') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
                     [pixel_spac, interped_map] = fit_fourier_spacing(im);
@@ -192,7 +197,7 @@ for i=1:size(fnamelist,1)
                 warning on;
             
             end
-            toc;
+           
             
             %% Map output
             metriclist = fieldnames(statistics{1});
@@ -228,6 +233,7 @@ for i=1:size(fnamelist,1)
 
             interped_map = interped_map./sum_map;
 
+            interped_map(isnan(interped_map)) =0;
             dispfig=figure(1); imagesc(interped_map); axis image; colorbar;
             [minval, minind] = min(interped_map(:));
             [maxval, maxind] = max(interped_map(:));
