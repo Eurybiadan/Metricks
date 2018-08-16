@@ -7,14 +7,11 @@
 clear;
 close all force;
 
-WINDOW_SIZE = 55;
+WINDOW_SIZE = [];
 
 %% Crop the coordinates/image to this size in [scale], and calculate the area from it.
 % If left empty, it uses the size of the image.
 
-if length(WINDOW_SIZE) > 1 && ~isempty(WINDOW_SIZE)
-   error('Window size cannot be empty, and must be a SINGLE value!');
-end
 
 basePath = which('Coordinate_Mosaic_Metrics.m');
 
@@ -140,6 +137,12 @@ for i=1:size(fnamelist,1)
                 
             else
                 
+                upper_bound = 100;
+                
+                if upper_bound > size(coords,1)
+                    upper_bound = size(coords,1);
+                end
+                
                 % Determine the window size dynamically for each coordinate
                 pixelwindowsize = zeros(size(coords,1),1);
 
@@ -147,7 +150,7 @@ for i=1:size(fnamelist,1)
 
                     thiswindowsize=0;
                     clipped_coords=[];
-                    while length(clipped_coords) < 100 || length(clipped_coords) <= size(coords,1)
+                    while length(clipped_coords) < upper_bound
                         thiswindowsize = thiswindowsize+1;
                         rowborders = ([coords(c,2)-(thiswindowsize/2) coords(c,2)+(thiswindowsize/2)]);
                         colborders = ([coords(c,1)-(thiswindowsize/2) coords(c,1)+(thiswindowsize/2)]);
@@ -164,7 +167,7 @@ for i=1:size(fnamelist,1)
                     pixelwindowsize(c) = thiswindowsize;
                 end
             end
-            
+            disp('Determined window size.')
             %% Actually calculate the statistics
             parfor c=1:size(coords,1)
                 
@@ -186,10 +189,10 @@ for i=1:size(fnamelist,1)
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 % Determine FFT Power Spectra %%
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                if (exist('fit_fourier_spacing.m','file') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
-                    [pixel_spac, interped_map] = fit_fourier_spacing(im);
-                    statistics{c}.DFT_Spacing = pixel_spac*scaleval;                
-                end
+%                 if (exist('fit_fourier_spacing.m','file') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
+%                     [pixel_spac, interped_map] = fit_fourier_spacing(im);
+%                     statistics{c}.DFT_Spacing = pixel_spac*scaleval;                
+%                 end
 
 
                 warning off;
@@ -240,6 +243,10 @@ for i=1:size(fnamelist,1)
             
             [minrow,mincol]=ind2sub(size(interped_map),minind);
             [maxrow,maxcol]=ind2sub(size(interped_map),maxind);
+            
+            max_x_vals = maxcol
+            max_y_vals = maxrow
+            
             title(['Minimum value: ' num2str(minval) '(' num2str(mincol) ',' num2str(minrow) ') Maximum value: ' num2str(maxval) '(' num2str(maxcol) ',' num2str(maxrow) ')'])
             
             result_fname = [getparent(basepath,'short') '_density_bound_coordmap_' date '_' num2str(WINDOW_SIZE) '_' metriclist{selectedmetric}];
