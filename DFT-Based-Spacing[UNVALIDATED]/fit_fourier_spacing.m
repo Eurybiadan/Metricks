@@ -18,7 +18,14 @@ interped_spac_map=[];
 
 imcomps = bwconncomp( imclose(test_image>0,ones(5)) );
 imbox = regionprops(imcomps, 'BoundingBox');
-imbox = floor(imbox.BoundingBox);
+
+
+boxsizes = zeros(size(imbox,1),1);
+for i=1:size(imbox,1)
+    boxsizes(i)= imbox(i).BoundingBox(3)*imbox(i).BoundingBox(4);
+end   
+[~, maxsizeind]=max(boxsizes);
+imbox = floor(imbox(maxsizeind).BoundingBox);
 
 imbox(imbox<=0) = 1;
 width_diff = im_size(2)-(imbox(1)+imbox(3));
@@ -69,7 +76,7 @@ for r=1:length(pixel_spac(:))
         rhosampling = .5;
         thetasampling = 1;
 
-        polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,'linear');
+        polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
         polarroi = circshift(polarroi,-90,1);
 
         img = polarroi';
@@ -77,7 +84,7 @@ for r=1:length(pixel_spac(:))
         fourierProfile = mean(polarroi);
 
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
-            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[]); 
+            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[]);
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
         else
             pixel_spac(r) = NaN;
@@ -104,21 +111,16 @@ if length(roi) > 1
 
             if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
                 
-                thiserr = err(round(i/roi_step)+1,round(j/roi_step)+1);
+                thiserr = err(round(i/roi_step)+1,round(j/roi_step)+1)^2;
+%                 if thiserr > .44
+                    interped_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;                
+                    thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
                 
-                interped_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;
-                
-                % Normalize the error based on the peak value
-%                 thiserr = thiserr-min(err(:));
-%                 thiserr = thiserr./max(err(:));
-%                 thiserr = 1-thiserr;
-                
-                thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
-                
-%                 if thisspac < avg_pixel_spac+(2*std_pixel_spac) % Prevent any large swings.
+
                     interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr*thisspac;
-%                     interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_corrected_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;
+
                     sum_map(i:i+roi_size-1, j:j+roi_size-1) = sum_map(i:i+roi_size-1, j:j+roi_size-1) + 1;
+
 %                 end
             else
 
@@ -136,9 +138,9 @@ if length(roi) > 1
     interped_err_map = interped_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     
-    figure(1); imagesc(interped_spac_map./interped_err_map); axis image; colormap gray;
-    figure(2); imagesc(interped_err_map./sum_map); axis image; colormap gray;
-    figure(3); imagesc(sum_map); axis image; colormap gray;
+    figure(1);clf; imagesc(interped_spac_map./interped_err_map); axis image; colormap gray;
+    figure(2);clf; imagesc(interped_err_map./sum_map); axis image; colormap gray;
+    figure(3);clf; imagesc(sum_map); axis image; colormap gray;
 end
 
 

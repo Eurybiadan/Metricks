@@ -1,4 +1,4 @@
-function [ pseudoim ] = imcart2pseudopolar( im, rhoSampling, thetaSampling , method )
+function [ pseudoim ] = imcart2pseudopolar( im, rhoSampling, thetaSampling , location, method )
 %FUNCTION [ pseudoim ] = imcart2pseudopolar( im, rhoSampling, thetaSampling )
 %   Robert Cooper
 %
@@ -21,6 +21,11 @@ end
 if ~exist('method','var') || isempty(method)
      method ='linear';
 end
+
+if ~exist('location','var') || isempty(location)
+     location = [ceil(size(im,2)/2) ceil(size(im,1)/2)];
+end
+
 im = double(im);
 %%
 [X, Y]= meshgrid( 1:size(im,2), 1:size(im,1) );
@@ -33,8 +38,8 @@ theta = 0: theta_step: 2*pi-theta_step;
 
 [Rx, Ty] = pol2cart(T,R);
 
-Rx = Rx + ceil(size(im,2)/2);
-Ty = Ty + ceil(size(im,1)/2);
+Rx = Rx + location(1);
+Ty = Ty + location(2);
 
 pseudoim = interp2(X,Y,im,Rx,Ty,method);
 

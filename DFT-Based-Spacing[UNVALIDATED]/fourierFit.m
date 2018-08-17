@@ -89,6 +89,7 @@ for i=spacing-1:-1:2
             figure(thePlot); 
             plot(spacing, fourierProfile(spacing),'r*')
         end
+        spacing=i;
         break;
     end
     preval = thisval;
@@ -172,7 +173,7 @@ SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
 n = length(fourierProfile);
 p = length(x)-1;
 
-err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
+% err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
 % err = sum(residuals(2:end).^2);
 

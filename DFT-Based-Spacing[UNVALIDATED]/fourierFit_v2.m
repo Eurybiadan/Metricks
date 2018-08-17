@@ -15,7 +15,7 @@ timeBase = 0:(length(fourierProfile)-1);
 if doplots
     thePlot = figure(10); clf; hold on
     set(gca,'FontName','Helvetica','FontSize',14);
-    plot(fourierProfile,'k');
+    plot(fourierProfile,'k'); axis([0 125 0 5])
 end
 
 
