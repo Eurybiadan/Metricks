@@ -84,7 +84,7 @@ for i=spacing-1:-1:2
     if preval>=0 && thisval>=0 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
         spacing=i; 
 
-    elseif thisval<0.07
+    elseif thisval<0.07 && ((residuals(i-1)>0) || (residuals(i)>0))
         if doplots
             figure(thePlot); 
             plot(spacing, fourierProfile(spacing),'r*')

@@ -61,8 +61,11 @@ residuals = predictions-fourierProfile;
 
 residuals = medfilt1(residuals,7);
 
-[pks,locs] = findpeaks(residuals*-1);
+[pks,locs] = findpeaks(fliplr(residuals*-1));
 locs = locs(pks>0); % Find all local minima that are below 0 (the fit is underneath the data)
+
+locs = length(fourierProfile)+1-locs; % Find the furthest out index of this peak.
+locs = locs(locs < floor(2*length(fourierProfile)/3)); % Make sure it's not at the end- we won't be finding rods.
 
 curheight = 1;
 curind=1;
@@ -83,7 +86,7 @@ for l=1:length(locs) % For each of the minima underneath the data,
     end
     % If the zero crossing was preceded by a lower minima,
     % then take/keep that as our starting point for the next step.
-    if residuals(locs(l))<=curheight
+    if residuals(locs(l))<curheight
         curheight = residuals(locs(l));
         maxnegdiff_ind = locs(l);
     end
@@ -92,25 +95,32 @@ end
 if doplots
     figure(11); clf;
     hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'b*' );
+    
 end
 
 % Trace back to where it is maximally different from our fit.
 preval = residuals(maxnegdiff_ind-1)-residuals(maxnegdiff_ind);
-for i=maxnegdiff_ind-1:-1:2
-   
-    thisval = residuals(i-1)-residuals(i);
-    
-    if round(preval, 5)<=0 && round(thisval,5)<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
-        maxnegdiff_ind=i; 
-    elseif thisval>0.03
-        if doplots
-            figure(thePlot); hold on;
-            plot( maxnegdiff_ind, fourierProfile(maxnegdiff_ind),'r*' );
-            hold off;
+if round(preval, 5)<0
+    for i=maxnegdiff_ind-1:-1:2
+
+        thisval = residuals(i-1)-residuals(i);
+
+        if round(preval, 5)<=0 && round(thisval,5)<=0 % It should only be decreasing or flat- if it isn't anymore and heads upward, kick out.
+            maxnegdiff_ind=i; 
+        elseif thisval>0.03
+            break;
         end
-        break;
+        preval = thisval;
     end
-    preval = thisval;
+end
+
+if doplots
+    figure(thePlot); hold on;
+    plot( maxnegdiff_ind, fourierProfile(maxnegdiff_ind),'r*' );
+    hold off;
+    figure(11); plot( residuals );
+    plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'r*' );
+    hold off;
 end
 
 SSres = sum(residuals.^2);
@@ -121,8 +131,7 @@ p = length(x)-1;
 err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
 if doplots
-    figure(11); plot( residuals );
-    hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'r*' );
+    
 end
 
 end

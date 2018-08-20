@@ -12,7 +12,7 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 125;%300; %125
+roi_size = 300; %125;
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
 
@@ -84,8 +84,10 @@ for r=1:length(pixel_spac(:))
         fourierProfile = mean(polarroi);
 
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
+
             [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[]);
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+            
         else
             pixel_spac(r) = NaN;
         end
