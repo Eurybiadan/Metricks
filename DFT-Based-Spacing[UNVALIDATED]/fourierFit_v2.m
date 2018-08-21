@@ -59,7 +59,10 @@ end
 % Find the second zero crossing (where the fit intersects with the curve)
 residuals = predictions-fourierProfile;
 
-residuals = medfilt1(residuals,7);
+% residuals = medfilt1(residuals,7);
+f = fit([1:length(residuals)]',residuals','smoothingspline','SmoothingParam',.66);
+
+residuals = f(1:length(residuals))';
 
 [pks,locs] = findpeaks(fliplr(residuals*-1));
 locs = locs(pks>0); % Find all local minima that are below 0 (the fit is underneath the data)

@@ -38,9 +38,9 @@ end
 
 % Add initial guess to the plot
 predictions0 = ComputeModelPreds(fitParams,timeBase);
-% if doplots
-%     figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
-% end
+if doplots
+    figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
+end
 
 %% Fit
 
