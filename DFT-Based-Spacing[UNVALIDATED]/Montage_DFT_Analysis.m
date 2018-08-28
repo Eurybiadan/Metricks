@@ -67,13 +67,13 @@ blendederrim = blendederrim./sum_map;
 if kstest(blendederrim(~isnan(blendederrim)))
     disp('The error is not normally  distributed.')
     threshold = quantile(blendederrim(~isnan(blendederrim)),0.05)
+    
 else
     threshold = mean(blendederrim(:),'omitnan')-2*std(blendederrim(:),'omitnan')
     disp('The error is normally distributed.')
 end
 
 threshold_mask = (blendederrim>threshold);
-
 
 
 scaled_spacing = (blendedim.*0.4567)-min(blendedim(:).*0.4567);
@@ -94,11 +94,14 @@ spac = sqrt(3)./ (2*(blendedim*0.4567).^2);
 density_map = (1000^2).*spac;
 
 % To find foveal center
-threshdensitymap=density_map;
-threshdensitymap(threshdensitymap<90000)=0;
+
+roi =roipoly(density_map.*threshold_mask);
+
+threshdensitymap=density_map.*roi;
+threshdensitymap(threshdensitymap<70000)=0;
 threshdensitymap(isnan(threshdensitymap))=0;
 
-maxes = imregionalmax(threshdensitymap);
+maxes = imregionalmax(threshdensitymap.*imclose(threshold_mask,ones(11)));
 
 s = regionprops(maxes,'centroid');
 maxcoords = zeros(length(s),2);
@@ -108,7 +111,7 @@ for i=1:length(s)
 end
 
 fig=figure(10); clf; hold on;
-imagesc(density_map); axis image;
+imagesc(density_map.*threshold_mask); axis image;
 plot(maxcoords(:,1),maxcoords(:,2),'b.'); 
 
 ellipsefit = fit_ellipse(maxcoords(:,1),maxcoords(:,2));
@@ -158,6 +161,7 @@ scaled_density = density_map-min(density_map(:));
 scaled_density = 255.*(scaled_density./ max(scaled_density(:)) );
 
 %% Display and output
+
 figure(1); imagesc(sum_map); axis image; colorbar;
 
 figure(2); imagesc( (blendedim.*0.4567) ); axis image; colorbar;
@@ -168,8 +172,10 @@ imwrite( uint8(scaled_error), flipud(jet(256)),'11028_OD_thresh_montage_err.tif'
 
 imwrite( uint8(imclose(threshold_mask,ones(11)).*foveamask.*255), '11028_OD_thresh_montage_mask.tif');
 
-figure(5); imagesc( density_map.*imclose(threshold_mask,ones(11)).*foveamask); axis image; colorbar;
+masked_density = density_map.*imclose(threshold_mask,ones(11)).*foveamask;
+figure(5); imagesc( masked_density ); axis image; colorbar;
+caxis([quantile(masked_density(~isnan(masked_density)),0.01) quantile(masked_density(~isnan(masked_density)),0.99)]);
 imwrite( uint8(scaled_density.*imclose(threshold_mask,ones(11)).*foveamask),parula(256),'11028_OD_thresh_montage_density.tif')
 
 %%
-% save( fullfile(thispath,'Fouriest.mat') );
+save( fullfile(thispath,'Fouriest.mat') );
