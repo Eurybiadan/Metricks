@@ -90,4 +90,4 @@ threshold_mask = (weighted_avg_error>threshold);
 figure(1); imagesc(weighted_avg_spacing.*threshold_mask); title('Combined Spacing');
 
 figure(2); imagesc(weighted_avg_spacing_std_dev.*threshold_mask); title('Combined Spacing Weighted Std dev');
-figure(3); imagesc(weighted_avg_error.*threshold_mask);
+figure(3); imagesc(weighted_avg_error.*threshold_mask); colormap(flipud(jet(256))); axis image; colorbar;

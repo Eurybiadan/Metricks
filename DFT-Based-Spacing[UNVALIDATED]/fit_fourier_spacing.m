@@ -64,8 +64,10 @@ err = nan(size(roi));
 for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})
         power_spect = fftshift(fft2(roi{r}));
+%         all_spect = cat(3,all_spect,abs(power_spect));
         power_spect = log10(abs(power_spect).^2);
 
+        
 %         figure(100); imagesc(power_spect); colormap gray; axis image;
 %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));

@@ -3,28 +3,8 @@ close all;
 
 [fNames,thispath ]=uigetfile(fullfile(pwd,'*.tif'),'Select all files you wish to analyze from a SINGLE subject.', 'MultiSelect', 'on');
 
-scaling = NaN;
+[scaling, unit] = determine_scaling(thispath);
 
-liststr = {'microns (mm density)','degrees','arcmin'};
-[selectedunit, oked] = listdlg('PromptString','Select output units:',...
-                              'SelectionMode','single',...
-                              'ListString',liststr);
-if oked == 0
-    error('Cancelled by user.');
-end
-
-unit = liststr{selectedunit};
-
-while isnan(scaling)                
-
-    scaling = inputdlg('Input the scale in UNITS/PIXEL:','Input the scale in UNITS/PIXEL:');
-
-    scaling = str2double(scaling);
-
-    if isempty(scaling)
-        error('Cancelled by user.');
-    end
-end
 
 %% Determine the DFT distance for each image in the montage
 im_spac_map = cell(length(fNames),1);
@@ -209,6 +189,6 @@ scaled_density(scaled_density>255) = 255;
 figure(5); imagesc( density_map.*imclose(threshold_mask,ones(11)).*foveamask ); axis image; colorbar;
 caxis([lower01 upper99]);
 imwrite( uint8(scaled_density.*imclose(threshold_mask,ones(11)).*foveamask),parula(256),fullfile(result_path, 'thresh_montage_density.tif'))
-
+clear scaled_density;
 %%
 save( fullfile(result_path,'Fouriest_Result.mat') );
