@@ -1,4 +1,4 @@
-function [scaling_information, selectedunit] = determine_scaling(basepath, fNames)
+function [scaling_information, selectedunit, lut] = determine_scaling(basepath, fNames)
 % [scaling_information, selectedunit] = determine_scaling(basepath, fNames)
 %   
 % This function is responsible for determining the scale information for a
@@ -21,6 +21,9 @@ function [scaling_information, selectedunit] = determine_scaling(basepath, fName
 %   correspond to the same index in the fName list.
 %
 %   @selectedunit: The unit that the user decided they wanted.
+%
+%   @lut: The lut that was used to determine the scaling and selectedunit
+%   information.
 %
 %   Created by Robert F Cooper, 2018-11-08
 
@@ -48,7 +51,7 @@ function [scaling_information, selectedunit] = determine_scaling(basepath, fName
             scaling_information = inputdlg('Input the scale in UNITS/PIXEL:','Input the scale in UNITS/PIXEL:');
 
             scaling_information = str2double(scaling_information);
-
+            lut=[];
             if isempty(scaling_information)
                 error('Cancelled by user.');
             end
@@ -57,8 +60,9 @@ function [scaling_information, selectedunit] = determine_scaling(basepath, fName
         
         [~, lutData] = load_scale_file(fullfile(scalingpath,scalingfname));
 
+        lut= lutData;
         if ~exist('fNames','var')
-            scaling_information = lutData;
+            scaling_information = lutData;            
         else
             scaling_information = nan(length(fNames),1);
             
@@ -100,6 +104,8 @@ function [ scaling_row, scaling_col ] = load_scale_file( fileloc )
 
     scaling_col = textscan(fid , '%s %f %f', 'delimiter', ',');
 
+    scaling_col{1} = cellfun(@(s) strrep(s,'"',''),scaling_col{1},'UniformOutput',false);
+    
     % Reform into cells that contain each row
     for i=1:size(scaling_col{1},1)
 
