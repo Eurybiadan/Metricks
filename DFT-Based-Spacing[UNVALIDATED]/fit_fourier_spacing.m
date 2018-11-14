@@ -12,7 +12,7 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 128;%300;  %125;
+roi_size = 128; %128;%300;
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
 
@@ -45,7 +45,7 @@ else
     for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
         for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=5));
+            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
             
             if numzeros < (roi_size*roi_size)*0.05
                 roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
@@ -80,8 +80,7 @@ for r=1:length(pixel_spac(:))
 
         polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
         polarroi = circshift(polarroi,-90,1);
-
-        img = polarroi';
+        
         
         fourierProfile = mean(polarroi);
 
@@ -89,6 +88,14 @@ for r=1:length(pixel_spac(:))
 
             [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[]);
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+            
+%             if pixel_spac(r) > 18
+%                 fourierFit(fourierProfile,[],true);
+%                 smangleProfile = mean(polarroi([1:45 135:225 315:360],:));
+%                 figure(1); hold on; plot(smangleProfile-min(smangleProfile)); hold off;
+%                 figure(100); imagesc(roi{r}); colormap gray; axis image;
+%                 err(r)
+%             end
             
         else
             pixel_spac(r) = NaN;
@@ -142,8 +149,8 @@ if length(roi) > 1
     interped_err_map = interped_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     
-    figure(1);clf; imagesc(interped_spac_map./interped_err_map); axis image; colormap gray;
-    figure(2);clf; imagesc(interped_err_map./sum_map); axis image; colormap gray;
+    figure(1);clf; imagesc(interped_spac_map./interped_err_map); axis image;
+    figure(2);clf; imagesc(interped_err_map./sum_map); axis image; colormap(flipud(jet(256)));
     figure(3);clf; imagesc(sum_map); axis image; colormap gray;
 end
 
