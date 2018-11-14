@@ -1,6 +1,8 @@
-function [spacing, predictions, err, fitParams] = fourierFit(fourierProfile, prior)
+function [spacing, predictions, err, fitParams] = fourierFit(fourierProfile, prior, doplots)
 
-doplots = false;
+if ~exist('doplots')
+    doplots = false;
+end
 
 
 %% Set up initial guess for fit parameters
@@ -85,11 +87,11 @@ for i=spacing-1:-1:2
         spacing=i; 
 
     elseif thisval<0.07 && ((residuals(i-1)>0) || (residuals(i)>0))
+        spacing=i;
         if doplots
             figure(thePlot); 
             plot(spacing, fourierProfile(spacing),'r*')
-        end
-        spacing=i;
+        end        
         break;
     end
     preval = thisval;

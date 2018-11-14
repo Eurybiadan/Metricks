@@ -69,6 +69,7 @@ locs = locs(pks>0); % Find all local minima that are below 0 (the fit is underne
 
 locs = length(fourierProfile)+1-locs; % Find the furthest out index of this peak.
 locs = locs(locs < floor(2*length(fourierProfile)/3)); % Make sure it's not at the end- we won't be finding rods.
+locs = locs(locs > 6); % Make sure it's not at the beginning- we won't be finding blood vessels.
 
 curheight = 1;
 curind=1;
