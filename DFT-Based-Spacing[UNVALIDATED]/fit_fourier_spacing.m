@@ -1,4 +1,4 @@
-function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image)
+function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size)
 
 
 if ~exist('test_image','var')
@@ -12,7 +12,9 @@ end
 % tic;
 
 im_size = size(test_image);
-roi_size = 128; %128;%300;
+if ~exist('roi_size','var')
+    roi_size = 128; %128;%300;
+end
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
 
