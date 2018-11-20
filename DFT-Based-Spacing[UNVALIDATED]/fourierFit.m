@@ -19,12 +19,12 @@ fourierSampling =(0:length(fourierProfile)-1)/(size(fourierProfile,2)*2);
 if doplots
     thePlot = figure(1); clf; hold on
     set(gca,'FontName','Helvetica','FontSize',14);
-    plot(fourierProfile,'k');
+    plot(timeBase, fourierProfile,'k');
 end
 
 if isempty(prior)
     
-    [fitParams.shift, firsterr] = fourierFit_v2(fourierProfile);
+    [fitParams.shift, firsterr] = fourierFit_v2(fourierProfile, doplots);
     % Make initial guesses
     fitParams.scale1 = 1;
     fitParams.decay1 = (fourierProfile(1)*.36) /...
@@ -52,7 +52,7 @@ options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off
 
 x1 = ParamsToX(fitParams);
 
-vlb = [0.5 0.001 0.01 0.001  0.001  1];
+vlb = [0.5 0.001 0.01 0.001  0.001  10];
 vub = [5 0.5   15   15     0.5    length(fourierProfile)-2];
 
 x = fmincon(@(x)FitModelErrorFunction(x,timeBase,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
@@ -71,22 +71,27 @@ end
 
 residuals = fourierProfile-predictions;
 spacing = ceil(fitParams.shift);
-residuals = medfilt1(residuals,3);
 
-preval = residuals(spacing-1)-residuals(spacing);
 if doplots
-figure(2);
-plot(spacing, residuals(spacing),'b*');
+    figure(2); clf; plot(residuals); hold on; plot(medfilt1(residuals,3));
+    plot(spacing, residuals(spacing),'b*'); 
 end
 
-for i=spacing-1:-1:2
+residuals = medfilt1(residuals,3);
+preval = residuals(spacing-1)-residuals(spacing);
+
+%%
+minbound = 8;
+maxbound = length(fourierProfile)-2;
+
+for i=spacing-1:-1:minbound
    
     thisval = residuals(i-1)-residuals(i);
     
-    if preval>=0 && thisval>=0 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
+    if preval>=0 && thisval>=-0.01 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
         spacing=i; 
 
-    elseif thisval<0.07 && ((residuals(i-1)>0) || (residuals(i)>0))
+    elseif thisval<-0.01 && ((residuals(i-1)>0) || (residuals(i)>0))
         spacing=i;
         if doplots
             figure(thePlot); 
@@ -97,13 +102,19 @@ for i=spacing-1:-1:2
     preval = thisval;
 end
 
-
-% Determine Sharpness of the peak as an error measurment
+%% Determine Sharpness of the peak as an error measurment
 lowfreqbound=spacing;
 highfreqbound=spacing;
-for i=spacing:-1:2
+
+f = fit([1:length(residuals)]',(fourierProfile-predictions)','smoothingspline','SmoothingParam', 0.3);
+sharpresiduals = f(1:length(residuals))';
+if doplots
+    figure(2); plot(sharpresiduals);
+end
+
+for i=(spacing-1):-1:minbound % Use a smoothed residual to find the bottoms of our peaks.
    
-    thisval = residuals(i-1)-residuals(i);
+    thisval = sharpresiduals(i-1)-sharpresiduals(i);
     
     if thisval<=0 
         lowfreqbound=i; 
@@ -118,9 +129,9 @@ for i=spacing:-1:2
     preval = thisval;
 end
 
-for i=spacing:1:length(fourierProfile)
+for i=(spacing+1):1:maxbound
    
-    thisval = residuals(i+1)-residuals(i);
+    thisval = sharpresiduals(i+1)-sharpresiduals(i);
     
     if thisval<=0 
         highfreqbound=i; 
@@ -135,23 +146,23 @@ for i=spacing:1:length(fourierProfile)
     preval = thisval;
 end
 
-maxamplitude = (max(residuals)-min(residuals));
+maxamplitude = max(residuals(minbound:maxbound))-min(residuals(minbound:maxbound));
 
-if lowfreqbound==spacing && highfreqbound~=spacing
+if lowfreqbound==(spacing-1) && highfreqbound~=spacing
     
     highheight = (residuals(spacing) - residuals(highfreqbound));
     highrun = fourierSampling(highfreqbound)-fourierSampling(spacing);
 
     heightdistinct = highheight./maxamplitude;
     
-elseif highfreqbound==spacing && lowfreqbound~=spacing
+elseif highfreqbound==(spacing+1) && lowfreqbound~=spacing
     
     lowheight = (residuals(spacing) - residuals(lowfreqbound));
     lowrun = fourierSampling(spacing)-fourierSampling(lowfreqbound);
 
     heightdistinct = lowheight./maxamplitude;
     
-elseif highfreqbound~=spacing && lowfreqbound~=spacing
+elseif highfreqbound~=(spacing+1) && lowfreqbound~=(spacing-1)
     % Find the distinctness of our peak based on the average height of the two
     % sides of the triangle
     lowheight = residuals(spacing) - residuals(lowfreqbound);
@@ -170,10 +181,10 @@ end
 
 
 % Coefficient of determination
-SSres = sum(residuals.^2);
-SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
-n = length(fourierProfile);
-p = length(x)-1;
+% SSres = sum(residuals.^2);
+% SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
+% n = length(fourierProfile);
+% p = length(x)-1;
 
 % err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
@@ -185,9 +196,10 @@ err =  heightdistinct; %(err/firsterr);
 
 if doplots
     
-    figure(2);hold on; plot(residuals); hold on; plot(spacing, residuals(spacing),'r*');
+    figure(2);
+    hold on; plot(spacing, residuals(spacing),'r*');
     hold off;
-    figure(1); title([' Error: ' num2str(err) ' 1st stage: ' num2str(firsterr) ]);
+    figure(1); title([' Quality: ' num2str(err) ]);
         hold off;
     drawnow;
 %     pause;

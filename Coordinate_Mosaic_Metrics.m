@@ -167,8 +167,9 @@ for i=1:size(fnamelist,1)
             %% Determine FFT Power Spectra %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
-                [pixel_spac, interped_spac_map] = fit_fourier_spacing(im);
+                [pixel_spac, ~, quality] = fit_fourier_spacing(im, min(size(im)));
                 statistics.DFT_Spacing = pixel_spac*scaleval;                
+                statistics.DFT_Quality = quality;
             end
 
 

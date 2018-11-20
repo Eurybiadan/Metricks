@@ -1,8 +1,10 @@
-function [maxnegdiff_ind, err ] = fourierFit_v2(fourierProfile)
+function [maxnegdiff_ind, err ] = fourierFit_v2(fourierProfile, doplots)
 
+if ~exist('doplots')
+    doplots = false;
+end
 
 %% Set up initial guess for fit parameters
-doplots = false;
 
 % Remove any nan and inf.
 fourierProfile = fourierProfile(~isnan(fourierProfile));

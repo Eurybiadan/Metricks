@@ -72,7 +72,7 @@ parfor i=1:length(fNames)
     
     im = imresize(im, imsize);
     
-    [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im);    
+    [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, 128);    
     
 end
 

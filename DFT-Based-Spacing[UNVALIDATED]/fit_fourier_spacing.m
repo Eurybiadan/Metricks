@@ -13,7 +13,7 @@ end
 
 im_size = size(test_image);
 if ~exist('roi_size','var')
-    roi_size = 128; %128;%300;
+    roi_size = 128;
 end
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
@@ -39,7 +39,7 @@ if height_diff  < 0
     imbox(4) = imbox(4)+height_diff;
 end
 
-if any( im_size < roi_size)    
+if any( im_size <= roi_size)    
     roi = {test_image};
 else
     roi = cell(round((size(test_image)-roi_size)/roi_step));
@@ -88,7 +88,7 @@ for r=1:length(pixel_spac(:))
 
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[]);
+            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], false);
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
             
 %             if pixel_spac(r) > 18

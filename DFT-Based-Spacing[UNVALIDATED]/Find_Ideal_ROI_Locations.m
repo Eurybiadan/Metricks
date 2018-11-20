@@ -3,7 +3,7 @@
 % This script uses outputs from Montage_DFT_Analysis.m to find regions of
 % interest.
 
-clear all;
+clear;
 close all force;
 
 pName = '/local_data/Dropbox/Conference_Presentations/ARVO_2019/DFT_Methods/ROI_Test_Data';
@@ -22,23 +22,26 @@ blurerrim = imgaussfilt(blendederrim,64);
 
 blurerrim(isnan(blurerrim))=1;
 
-figure;imagesc(blurerrim);colormap(flipud(jet(256))); axis image;
-
 
 %%
 
-x0 = [5050, 2195];
+x0 = [5.050, 2.195];
 
-f = @(x)errfun(x,1-blurerrim, 128);
-d = @(x)distfun(x,x0, 256);
-optim=optimoptions(@patternsearch,'Display','iter');
+f = @(x)errfun(x,1-blurerrim, 16);
+minmaxd = @(x)distfun(x,x0, 2, 256);
 
-[x, fval, exitflag]=patternsearch(f, x0,[],[],[],[],[1 1], size(blurerrim),d,optim)
+optim=optimoptions(@fmincon,'Display','iter','DiffMinChange',0.001,'ConstraintTolerance',1e-9);
+
+[x, fval, exitflag]=fmincon(f, x0,[],[],[],[],[1 1], size(blurerrim),minmaxd,optim)
 
 
-imagesc(blurerrim); hold on;plot(x0(2),x0(1),'b*'); plot(x(2),x(1),'g*'); hold off;
+x0 = x0.*1000;
+x = x.*1000;
+figure; imagesc(1-blurerrim); colormap(jet(256)); axis image;
+hold on;plot(x0(2),x0(1),'b*'); plot(x(2),x(1),'g*'); hold off;
 
 function f=errfun(x, costim, roisize)
+    x = x.*1000;
 
     halfroisize = roisize/2;
     roiranger = round( ((x(1)-halfroisize):(x(1)+halfroisize)) );
@@ -47,10 +50,14 @@ function f=errfun(x, costim, roisize)
     f=mean2(costim(roiranger,roirangec));
 end
 
-function [c,ceq]=distfun(x, startpoint, maxdist)
-
-    c = sqrt(sum((x-startpoint).^2))-maxdist; % Distance function
+function [c,ceq]=distfun(x, startpoint, mindist, maxdist)
+    x = round(x.*1000);
+    startpoint = round(startpoint.*1000);
     
-ceq=[];
+    c = sqrt(sum((x-startpoint).^2))-maxdist; % Distance function
+
+    
+    ceq = double(sqrt(sum((x-startpoint).^2))==0);
 end
+
 

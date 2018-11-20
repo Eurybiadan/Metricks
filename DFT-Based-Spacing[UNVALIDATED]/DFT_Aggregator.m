@@ -92,8 +92,8 @@ end
 
 threshold_mask = (avg_error>threshold);
 
-figure(1); imagesc(avg_spacing.*threshold_mask); title('Combined Spacing');
-figure(2); imagesc(avg_error.*threshold_mask); colormap(flipud(jet(256))); axis image; colorbar; title('Average Error');
+% figure(1); imagesc(avg_spacing.*threshold_mask); title('Combined Spacing');
+% figure(2); imagesc(avg_error.*threshold_mask); colormap(flipud(jet(256))); axis image; colorbar; title('Average Error');
 
 %% Determine average/stddev of all data.
 spacing_std_dev = zeros(global_dimension);
@@ -111,14 +111,14 @@ for f=1:length(fNames)
     end
     
     spacing_std_dev( rowrange, colrange) = (sum(cat(3, scaling.*blendedim, -avg_spacing( rowrange, colrange)),3,'omitnan').^2);
-    clear blendedim sum_map
+    clear blendedim sum_map rowrange colrange
 end
 
 spacing_std_dev = sqrt(spacing_std_dev./(combined_sum_map-1));
 
 
 
-figure(3); imagesc(spacing_std_dev.*threshold_mask); title('Combined Spacing Std dev');
+% figure(3); imagesc(spacing_std_dev.*threshold_mask); title('Combined Spacing Std dev');
 
 return;
 
