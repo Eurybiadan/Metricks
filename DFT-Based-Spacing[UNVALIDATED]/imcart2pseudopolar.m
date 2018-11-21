@@ -23,7 +23,7 @@ if ~exist('method','var') || isempty(method)
 end
 
 if ~exist('location','var') || isempty(location)
-     location = [ceil(size(im,2)/2) ceil(size(im,1)/2)];
+     location = [floor(size(im,2)/2)+1 floor(size(im,1)/2)+1];
 end
 
 im = double(im);

@@ -62,7 +62,7 @@ end
 residuals = predictions-fourierProfile;
 
 % residuals = medfilt1(residuals,7);
-f = fit([1:length(residuals)]',residuals','smoothingspline','SmoothingParam',.66);
+f = fit([1:length(residuals)]',residuals','smoothingspline','SmoothingParam',.5);
 
 residuals = f(1:length(residuals))';
 
@@ -92,7 +92,7 @@ for l=1:length(locs) % For each of the minima underneath the data,
     end
     % If the zero crossing was preceded by a lower minima,
     % then take/keep that as our starting point for the next step.
-    if residuals(locs(l))<curheight
+    if residuals(locs(l)) < curheight
         curheight = residuals(locs(l));
         maxnegdiff_ind = locs(l);
     end

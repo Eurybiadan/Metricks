@@ -168,7 +168,7 @@ for i=1:size(fnamelist,1)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
                 [pixel_spac, ~, quality] = fit_fourier_spacing(im, min(size(im)));
-                statistics.DFT_Spacing = pixel_spac*scaleval;                
+                statistics.DFT_Row_Spacing = pixel_spac*scaleval;                
                 statistics.DFT_Quality = quality;
             end
 

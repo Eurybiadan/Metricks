@@ -13,7 +13,7 @@ end
 
 im_size = size(test_image);
 if ~exist('roi_size','var')
-    roi_size = 128;
+    roi_size = im_size;
 end
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
@@ -83,21 +83,14 @@ for r=1:length(pixel_spac(:))
         polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
         polarroi = circshift(polarroi,-90,1);
         
-        
-        fourierProfile = mean(polarroi);
+        upper = [1:45 136:225 316:360];
+        sides = [46:135 226:315];
+        fourierProfile = mean(polarroi(upper,:));
 
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], false);
+            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], true);
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
-            
-%             if pixel_spac(r) > 18
-%                 fourierFit(fourierProfile,[],true);
-%                 smangleProfile = mean(polarroi([1:45 135:225 315:360],:));
-%                 figure(1); hold on; plot(smangleProfile-min(smangleProfile)); hold off;
-%                 figure(100); imagesc(roi{r}); colormap gray; axis image;
-%                 err(r)
-%             end
             
         else
             pixel_spac(r) = NaN;
