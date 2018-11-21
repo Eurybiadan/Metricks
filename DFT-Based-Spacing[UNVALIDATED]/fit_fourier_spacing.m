@@ -83,13 +83,13 @@ for r=1:length(pixel_spac(:))
         polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
         polarroi = circshift(polarroi,-90,1);
         
-        upper = [1:45 136:225 316:360];
-        sides = [46:135 226:315];
-        fourierProfile = mean(polarroi(upper,:));
+        upper_n_lower = [1:45 136:225 316:360];
+        left_n_right = [46:135 226:315];
+        fourierProfile = mean(polarroi(upper_n_lower,:));
 
         if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], true);
+            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], false);
             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
             
         else
