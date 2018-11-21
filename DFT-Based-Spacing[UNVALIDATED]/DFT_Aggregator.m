@@ -78,6 +78,7 @@ for f=1:length(fNames)
 end
 
 avg_spacing = scaling.*avg_spacing./combined_sum_map;
+avg_spacing= avg_spacing.*2/sqrt(3); % To ICD
 avg_error = avg_error./combined_sum_map;
 
 % Display the results.
@@ -90,10 +91,11 @@ else
     disp('The error is normally distributed.')
 end
 
-threshold_mask = (avg_error>threshold);
+threshold_mask = (avg_error>threshold) & (combined_sum_map>10);
 
-% figure(1); imagesc(avg_spacing.*threshold_mask); title('Combined Spacing');
-% figure(2); imagesc(avg_error.*threshold_mask); colormap(flipud(jet(256))); axis image; colorbar; title('Average Error');
+figure(1); imagesc(avg_spacing.*threshold_mask); title('Combined Spacing');
+figure(2); imagesc(avg_error.*threshold_mask); colormap(flipud(jet(256))); axis image; colorbar; title('Average Error');
+return;
 
 %% Determine average/stddev of all data.
 spacing_std_dev = zeros(global_dimension);

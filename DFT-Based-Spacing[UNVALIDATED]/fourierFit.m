@@ -81,7 +81,7 @@ residuals = medfilt1(residuals,3);
 preval = residuals(spacing-1)-residuals(spacing);
 
 %%
-minbound = 8;
+minbound = 4;
 maxbound = length(fourierProfile)-2;
 
 for i=spacing-1:-1:minbound
@@ -112,7 +112,8 @@ if doplots
     figure(2); plot(sharpresiduals);
 end
 
-for i=(spacing-1):-1:minbound % Use a smoothed residual to find the bottoms of our peaks.
+%% Use a smoothed residual to find the bottoms of our peaks.
+for i=(spacing-1):-1:minbound 
    
     thisval = sharpresiduals(i-1)-sharpresiduals(i);
     
@@ -120,6 +121,7 @@ for i=(spacing-1):-1:minbound % Use a smoothed residual to find the bottoms of o
         lowfreqbound=i; 
 
     elseif thisval>0
+        lowfreqbound=i; 
         if doplots
             figure(2); hold on;
             plot(lowfreqbound, residuals(lowfreqbound),'g*')
@@ -128,7 +130,7 @@ for i=(spacing-1):-1:minbound % Use a smoothed residual to find the bottoms of o
     end
     preval = thisval;
 end
-
+%%
 for i=(spacing+1):1:maxbound
    
     thisval = sharpresiduals(i+1)-sharpresiduals(i);
@@ -137,6 +139,7 @@ for i=(spacing+1):1:maxbound
         highfreqbound=i; 
 
     elseif thisval>0
+        highfreqbound=i;
         if doplots
             figure(2); hold on;
             plot(highfreqbound, residuals(highfreqbound),'g*')
@@ -176,7 +179,7 @@ elseif highfreqbound~=(spacing+1) && lowfreqbound~=(spacing-1)
 
     heightdistinct = max([lowheight highheight])./maxamplitude;
 else
-    heightdistinct=1;
+    heightdistinct=0;
 end
 
 

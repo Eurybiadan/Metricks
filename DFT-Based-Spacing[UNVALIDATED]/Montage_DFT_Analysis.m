@@ -230,6 +230,7 @@ save( fullfile(result_path,[prefix 'Fouriest_Result.mat']), '-v7.3' );
 
 % figure(1); imagesc(sum_map); axis image; colorbar;
 
+blendedim = blendedim.*2/sqrt(3); % To convert to ICD spacing.
 scaled_spacing = (blendedim.*scaling)-min(blendedim(:).*scaling);
 scaled_spacing = 255.*(scaled_spacing./ max(scaled_spacing(:)) );
 

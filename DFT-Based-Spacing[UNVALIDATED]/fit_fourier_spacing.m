@@ -1,7 +1,7 @@
 function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size)
 
 
-if ~exist('test_image','var')
+if ~exist('test_image','var') || isempty(test_image)
     [filename, pathname] = uigetfile('*.tif', 'Pick an image to segment');
 
     test_image = imread( fullfile(pathname, filename) );
@@ -96,6 +96,13 @@ for r=1:length(pixel_spac(:))
             pixel_spac(r) = NaN;
         end
 
+%         if pixel_spac(r)>13
+%             [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], true);
+%             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+%             figure(200); imagesc(roi{r}); colormap gray; axis image;
+%             drawnow;
+%         end
+        
     end
 end
 
@@ -144,7 +151,7 @@ if length(roi) > 1
     interped_err_map = interped_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     
-    figure(1);clf; imagesc(interped_spac_map./interped_err_map); axis image;
+    figure(1);clf; imagesc((2/sqrt(3)).*interped_spac_map./interped_err_map); axis image;
     figure(2);clf; imagesc(interped_err_map./sum_map); axis image; colormap(flipud(jet(256)));
     figure(3);clf; imagesc(sum_map); axis image; colormap gray;
 end
