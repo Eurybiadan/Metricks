@@ -70,7 +70,7 @@ for r=1:length(pixel_spac(:))
         power_spect = log10(abs(power_spect).^2);
 
         
-%         figure(100); imagesc(power_spect); colormap gray; axis image;
+        
 %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));
 %         power_spect_export = power_spect_export.*255;
@@ -85,12 +85,14 @@ for r=1:length(pixel_spac(:))
         
         upper_n_lower = [1:45 136:225 316:360];
         left_n_right = [46:135 226:315];
-        fourierProfile = mean(polarroi(upper_n_lower,:));
+        upper_n_lower_fourierProfile = mean(polarroi(upper_n_lower,:));
+        left_n_right_fourierProfile = mean(polarroi(left_n_right,:));
+        fullfourierProfile = mean(polarroi);
 
-        if ~all(isinf(fourierProfile)) && ~all(isnan(fourierProfile))
+        if ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], false);
-            pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], true);
+            pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)/rhosampling));
             
         else
             pixel_spac(r) = NaN;
@@ -99,6 +101,8 @@ for r=1:length(pixel_spac(:))
 %         if pixel_spac(r)>13
 %             [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], true);
 %             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
+%             err(r);
+%             figure(100); imagesc(polarroi); axis image;
 %             figure(200); imagesc(roi{r}); colormap gray; axis image;
 %             drawnow;
 %         end

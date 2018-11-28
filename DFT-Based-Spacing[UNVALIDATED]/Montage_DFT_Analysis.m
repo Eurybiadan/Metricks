@@ -3,7 +3,7 @@ close all;
 
 [fNames,thispath ]=uigetfile(fullfile(pwd,'*.tif'),'Select all files you wish to analyze from a SINGLE subject.', 'MultiSelect', 'on');
 
-[scaling, unit, lut] = determine_scaling(thispath,fNames);
+[scaling, unit, lut] = determine_scaling(pwd,fNames);
 
 scaling = unique(scaling);
 rel_scale = 1;

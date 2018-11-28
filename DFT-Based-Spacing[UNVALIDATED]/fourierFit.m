@@ -11,9 +11,9 @@ end
 fourierProfile = fourierProfile(~isnan(fourierProfile));
 fourierProfile = fourierProfile(~isinf(fourierProfile));
 fourierProfile = fourierProfile-min(fourierProfile);
-timeBase = 0:(length(fourierProfile)-1);
+timeBase = 1:(length(fourierProfile));
 
-fourierSampling =(0:length(fourierProfile)-1)/(size(fourierProfile,2)*2);
+fourierSampling =(1:length(fourierProfile))/(size(fourierProfile,2)*2);
 
 %% Start plot
 if doplots
@@ -29,7 +29,15 @@ if isempty(prior)
     fitParams.scale1 = 1;
     fitParams.decay1 = (fourierProfile(1)*.36) /...
                         (fitParams.shift-1);
-    fitParams.offset1 = max(fourierProfile)-fitParams.scale1;
+
+    [maxval, maxind] = max(fourierProfile);
+    if maxind ~= 1 % If the maximum value isn't the first index, 
+                   % then ensure that the fit doesn't start touching the
+                   % data
+        maxval = maxval+1;
+    end
+                    
+    fitParams.offset1 = maxval-fitParams.scale1;
     fitParams.scale2 =  fitParams.offset1*.3679;
     fitParams.decay2 = (fourierProfile(fitParams.shift)*.36) /...
                         (length(fourierProfile)-fitParams.shift);
@@ -106,21 +114,21 @@ end
 lowfreqbound=spacing;
 highfreqbound=spacing;
 
-f = fit([1:length(residuals)]',(fourierProfile-predictions)','smoothingspline','SmoothingParam', 0.3);
-sharpresiduals = f(1:length(residuals))';
-if doplots
-    figure(2); plot(sharpresiduals);
-end
+% f = fit([1:length(residuals)]',(fourierProfile-predictions)','smoothingspline','SmoothingParam', 0.3);
+sharpresiduals = residuals; %f(1:length(residuals))';
+% if doplots
+%     figure(2); plot(sharpresiduals);
+% end
 
 %% Use a smoothed residual to find the bottoms of our peaks.
 for i=(spacing-1):-1:minbound 
    
     thisval = sharpresiduals(i-1)-sharpresiduals(i);
     
-    if thisval<=0 
+    if thisval<=0.01 
         lowfreqbound=i; 
 
-    elseif thisval>0
+    elseif thisval>0.01
         lowfreqbound=i; 
         if doplots
             figure(2); hold on;
@@ -135,10 +143,10 @@ for i=(spacing+1):1:maxbound
    
     thisval = sharpresiduals(i+1)-sharpresiduals(i);
     
-    if thisval<=0 
+    if thisval<=0.01 
         highfreqbound=i; 
 
-    elseif thisval>0
+    elseif thisval>0.01
         highfreqbound=i;
         if doplots
             figure(2); hold on;
