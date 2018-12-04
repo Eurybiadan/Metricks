@@ -1,4 +1,4 @@
-function [maxnegdiff_ind, err ] = fourierFit_v2(fourierProfile, doplots)
+function [shift, err ] = fourierFit_v2(fourierProfile, doplots)
 
 if ~exist('doplots')
     doplots = false;
@@ -18,21 +18,21 @@ fourierSampling =(timeBase/(size(fourierProfile,2)*2));
 if doplots
     thePlot = figure(10); clf; hold on
     set(gca,'FontName','Helvetica','FontSize',14);
-    plot(fourierProfile,'k'); axis([0 125 0 5])
+    plot(fourierSampling,fourierProfile,'k'); axis([0 max(fourierSampling) 0 7])
 end
 
 
 % Make initial guesses    
 fitParams.scale1 = max(fourierProfile)*0.9-min(fourierProfile);
-fitParams.decay1 = .05;
+fitParams.decay1 = 1;
 fitParams.offset1 = 0;
 fitParams.shift = 0;
 
 
 % Add initial guess to the plot
-predictions0 = ComputeModelPreds(fitParams,timeBase);
+predictions0 = ComputeModelPreds(fitParams,fourierSampling);
 if doplots
-    figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
+    figure(thePlot); hold on; plot(fourierSampling,predictions0,'k','LineWidth',2); hold off;
 end
 %% Fit
 
@@ -42,20 +42,21 @@ options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off
 
 x1 = ParamsToX(fitParams);
 
-vlb = [0.01 0.001  -10  1];
-vub = [15   15     10    length(fourierProfile)-2];
+% scale decay offset shift
+vlb = [0.01 0.001  -10  0];
+vub = [15   15     10   max(fourierSampling)];
 
-x = fmincon(@(x)FitModelErrorFunction(x,timeBase,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
+x = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
 
 % Extract fit parameters
 fitParams = XToParams(x,fitParams);
 
 % Add final fit to plot
-predictions = ComputeModelPreds(fitParams,timeBase);
+predictions = ComputeModelPreds(fitParams,fourierSampling);
 
 % spacing = fitParams.shift;
 if doplots
-    figure(thePlot); hold on; plot(timeBase,predictions,'g','LineWidth',2); 
+    figure(thePlot); hold on; plot(fourierSampling,predictions,'g','LineWidth',2); 
     hold off;drawnow;
 end
 
@@ -101,7 +102,7 @@ end
 
 if doplots
     figure(11); clf;
-    hold on; plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'b*' );
+    hold on; plot( fourierSampling(maxnegdiff_ind), residuals(maxnegdiff_ind),'b*' );
     
 end
 
@@ -123,12 +124,14 @@ end
 
 if doplots
     figure(thePlot); hold on;
-    plot( maxnegdiff_ind, fourierProfile(maxnegdiff_ind),'r*' );
+    plot( fourierSampling(maxnegdiff_ind), fourierProfile(maxnegdiff_ind),'r*' );
     hold off;
-    figure(11); plot( residuals );
-    plot( maxnegdiff_ind, residuals(maxnegdiff_ind),'r*' );
+    figure(11); plot(fourierSampling, residuals );
+    plot( fourierSampling(maxnegdiff_ind), residuals(maxnegdiff_ind),'r*' );
     hold off;
 end
+
+
 
 SSres = sum(residuals.^2);
 SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
@@ -137,9 +140,7 @@ p = length(x)-1;
 
 err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
 
-if doplots
-    
-end
+shift = fourierSampling(maxnegdiff_ind+1);
 
 end
 

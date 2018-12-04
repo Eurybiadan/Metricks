@@ -1,4 +1,4 @@
-function [spacing, predictions, err, fitParams] = fourierFit(fourierProfile, prior, doplots)
+function [spacing_ind, predictions, err, fitParams] = fourierFit(fourierProfile, prior, doplots)
 
 if ~exist('doplots')
     doplots = false;
@@ -19,37 +19,38 @@ fourierSampling =(timeBase/(size(fourierProfile,2)*2));
 if doplots
     thePlot = figure(1); clf; hold on
     set(gca,'FontName','Helvetica','FontSize',14);
-    plot(timeBase, fourierProfile,'k');
+    plot(fourierSampling, fourierProfile,'k');
 end
 
 if isempty(prior)
     
-    [fitParams.shift, firsterr] = fourierFit_v2(fourierProfile, doplots);
+    [initshift, firsterr] = fourierFit_v2(fourierProfile, doplots);
+    fitParams.shift = initshift;
     % Make initial guesses
     fitParams.scale1 = 1;
     fitParams.decay1 = (fourierProfile(1)*.36) /...
-                        (fitParams.shift-1);
+                        (fitParams.shift);
 
     [maxval, maxind] = max(fourierProfile);
-    if maxind ~= 1 % If the maximum value isn't the first index, 
+%     if maxind ~= 1 % If the maximum value isn't the first index, 
                    % then ensure that the fit doesn't start touching the
                    % data
         maxval = maxval+1;
-    end
+%     end
                     
     fitParams.offset1 = maxval-fitParams.scale1;
     fitParams.scale2 =  fitParams.offset1*.3679;
-    fitParams.decay2 = (fourierProfile(fitParams.shift)*.36) /...
-                        (length(fourierProfile)-fitParams.shift);
+    fitParams.decay2 = (max(fourierSampling)-fitParams.shift)/ (fitParams.shift*.36);
+                        
         
 else
     fitParams = prior;
 end
 
 % Add initial guess to the plot
-predictions0 = ComputeModelPreds(fitParams,timeBase);
+predictions0 = ComputeModelPreds(fitParams,fourierSampling);
 if doplots
-    figure(thePlot); hold on; plot(timeBase,predictions0,'k','LineWidth',2); hold off;
+    figure(thePlot); hold on; plot(fourierSampling,predictions0,'k','LineWidth',2); hold off;
 end
 
 %% Fit
@@ -59,40 +60,41 @@ options = optimset('fmincon');
 options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off','Algorithm','interior-point');
 
 x1 = ParamsToX(fitParams);
+% [scale1 decay1 offset1 scale2 decay2 shift]
+vlb = [0.5 0.001 0.01 0.001  0.001  initshift-0.1];
+vub = [5 25   15   15     25    initshift+0.1];
 
-vlb = [0.5 0.001 0.01 0.001  0.001  10];
-vub = [5 0.5   15   15     0.5    length(fourierProfile)-2];
-
-x = fmincon(@(x)FitModelErrorFunction(x,timeBase,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
+x = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
 
 % Extract fit parameters
 fitParams = XToParams(x,fitParams);
 
 % Add final fit to plot
-predictions = ComputeModelPreds(fitParams,timeBase);
+predictions = ComputeModelPreds(fitParams,fourierSampling);
 
 if doplots
-    figure(thePlot); hold on; plot(timeBase,predictions,'g','LineWidth',2);
-    axis([0 150 0 5]);
+    figure(thePlot); hold on; plot(fourierSampling,predictions,'g','LineWidth',2);
+    axis([0 max(fourierSampling) 0 7]);
 end
 
 
 residuals = fourierProfile-predictions;
-spacing = ceil(fitParams.shift);
+spacing_val = fitParams.shift;
+spacing_ind = max(find(fourierSampling<=spacing_val));
 
 if doplots
-    figure(2); clf; plot(residuals); hold on; plot(medfilt1(residuals,3));
-    plot(spacing, residuals(spacing),'b*'); 
+    figure(2); clf; plot(fourierSampling, residuals); hold on; plot(fourierSampling, medfilt1(residuals,3));
+    plot(spacing_val, residuals(spacing_ind),'b*'); 
 end
 
 residuals = medfilt1(residuals,3);
-preval = residuals(spacing-1)-residuals(spacing);
+preval = residuals(spacing_ind-1)-residuals(spacing_ind);
 
 %%
 minbound = 4;
 maxbound = length(fourierProfile)-2;
 platstart=NaN;
-for i=spacing-1:-1:minbound
+for i=spacing_ind-1:-1:minbound
    
     thisval = residuals(i-1)-residuals(i);
     
@@ -101,28 +103,28 @@ for i=spacing-1:-1:minbound
         platstart = i; %The plateau would've started before this index if thisval is 0.
     end
     
-    if preval>=0 && thisval>=-0.01 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
-        spacing=i; 
+    if preval>=0 && thisval>=0 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
+        spacing_ind=i; 
 
-    elseif thisval<-0.01 && ((residuals(i-1)>0) || (residuals(i)>0))
+    elseif thisval<0 && ((residuals(i-1)>0) || (residuals(i)>0))
         if isnan(platstart)
-            spacing=i;
+            spacing_ind=i;
         else
-            spacing=(platstart+i)/2;
+            spacing_ind=(platstart+i)/2;
         end
         
         break;
     end
     
     % If thisval isn't 0 anymore, we're not on a plataeu.
-    if thisval>=eps && thisval<=-eps
+    if thisval>=eps || thisval<=-eps
         platstart=NaN;
     end
     preval = thisval;
 end
 
 %% Determine Sharpness of the peak as an error measurment
-flattened_spacing = floor(spacing);
+flattened_spacing = floor(spacing_ind);
 lowfreqbound=flattened_spacing;
 highfreqbound=flattened_spacing;
 
@@ -144,7 +146,7 @@ for i=(flattened_spacing-1):-1:minbound
         lowfreqbound=i; 
         if doplots
             figure(2); hold on;
-            plot(lowfreqbound, residuals(lowfreqbound),'g*')
+            plot(fourierSampling(lowfreqbound), residuals(lowfreqbound),'g*')
         end
         break;
     end
@@ -162,7 +164,7 @@ for i=(flattened_spacing+1):1:maxbound
         highfreqbound=i;
         if doplots
             figure(2); hold on;
-            plot(highfreqbound, residuals(highfreqbound),'g*')
+            plot(fourierSampling(highfreqbound), residuals(highfreqbound),'g*')
         end
         break;
     end
@@ -218,14 +220,14 @@ end
 % spacing_ratio = (length(fourierProfile)./spacing);
 
 err =  heightdistinct; %(err/firsterr); 
-fourierSampling(flattened_spacing)
+
 if doplots
 
     figure(2);
-    hold on; plot(spacing, residuals(flattened_spacing),'r*');
+    hold on; plot(fourierSampling(flattened_spacing), residuals(flattened_spacing),'r*');
     hold off;
     figure(1); 
-    plot(spacing, fourierProfile(flattened_spacing),'r*')
+    plot(fourierSampling(flattened_spacing), fourierProfile(flattened_spacing),'r*')
     title([' Quality: ' num2str(err) ]);
         hold off;
     drawnow;
@@ -286,7 +288,7 @@ bottomExpTime = freqBase(bottomExpLoc);
 
 % The exponential must always line up with the other exponential function's
 % value!   
-maxmatch = fullExp(bottomExpTime(1))-params.scale2;
+maxmatch = fullExp(bottomExpLoc(1))-params.scale2;
 
 fullExp(bottomExpLoc) = maxmatch + params.scale2*exp( -params.decay2 * (bottomExpTime-bottomExpTime(1)) );
 

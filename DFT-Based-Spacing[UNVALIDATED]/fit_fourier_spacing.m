@@ -70,28 +70,29 @@ for r=1:length(pixel_spac(:))
 %         all_spect = cat(3,all_spect,abs(power_spect));
         power_spect = log10(abs(power_spect).^2);
        
-%         figure(100); imagesc(power_spect); axis image;
+        figure(100); imagesc(power_spect); axis image;
 %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));
 %         power_spect_export = power_spect_export.*255;
 % %         
 %         imwrite(uint8(power_spect_export),['pwr_spect ' num2str(r) '.tif']);
 
-        rhosampling = .25;
+        rhosampling = .5;
         thetasampling = 1;
 
         [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
-        polarroi = circshift(polarroi,-90,1);
+        polarroi = circshift(polarroi,-90/thetasampling,1);
+        figure(101); imagesc(polarroi); axis image;
         
-        upper_n_lower = [1:45 136:225 316:360];
-        left_n_right = [46:135 226:315];
+        upper_n_lower = [thetasampling:45 136:225 316:360]/thetasampling;
+        left_n_right = [46:135 226:315]/thetasampling;
         upper_n_lower_fourierProfile = mean(polarroi(upper_n_lower,:));
         left_n_right_fourierProfile = mean(polarroi(left_n_right,:));
         fullfourierProfile = mean(polarroi);
 
         if ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], true);
+            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], false);
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
             pixel_spac(r) = pixel_spac(r)/upsample;
         else

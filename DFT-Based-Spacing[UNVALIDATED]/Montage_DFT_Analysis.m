@@ -121,8 +121,8 @@ else
     disp('The error is normally distributed.')
 end
 
-if threshold < 0.3 % Our absolute cutoff for threshold should be 0.3- that is pretty abysmal.
-    threshold = 0.3
+if threshold < 0.15 % Our absolute cutoff for threshold should be 0.3- that is pretty abysmal.
+    threshold = 0.15
 end
 
 threshold_mask = (blendederrim>threshold);
