@@ -11,7 +11,8 @@ fourierProfile = fourierProfile(~isnan(fourierProfile));
 fourierProfile = fourierProfile(~isinf(fourierProfile));
 fourierProfile = fourierProfile-min(fourierProfile);
 
-timeBase = 0:(length(fourierProfile)-1);
+timeBase = 1:length(fourierProfile);
+fourierSampling =(timeBase/(size(fourierProfile,2)*2));
 
 % Plot
 if doplots

@@ -13,7 +13,7 @@ fourierProfile = fourierProfile(~isinf(fourierProfile));
 fourierProfile = fourierProfile-min(fourierProfile);
 timeBase = 1:(length(fourierProfile));
 
-fourierSampling =(1:length(fourierProfile))/(size(fourierProfile,2)*2);
+fourierSampling =(timeBase/(size(fourierProfile,2)*2));
 
 %% Start plot
 if doplots
@@ -91,28 +91,40 @@ preval = residuals(spacing-1)-residuals(spacing);
 %%
 minbound = 4;
 maxbound = length(fourierProfile)-2;
-
+platstart=NaN;
 for i=spacing-1:-1:minbound
    
     thisval = residuals(i-1)-residuals(i);
+    
+    % If we're on a plateau, track it.
+    if thisval<=eps && thisval>=-eps
+        platstart = i; %The plateau would've started before this index if thisval is 0.
+    end
     
     if preval>=0 && thisval>=-0.01 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
         spacing=i; 
 
     elseif thisval<-0.01 && ((residuals(i-1)>0) || (residuals(i)>0))
-        spacing=i;
-        if doplots
-            figure(thePlot); 
-            plot(spacing, fourierProfile(spacing),'r*')
-        end        
+        if isnan(platstart)
+            spacing=i;
+        else
+            spacing=(platstart+i)/2;
+        end
+        
         break;
+    end
+    
+    % If thisval isn't 0 anymore, we're not on a plataeu.
+    if thisval>=eps && thisval<=-eps
+        platstart=NaN;
     end
     preval = thisval;
 end
 
 %% Determine Sharpness of the peak as an error measurment
-lowfreqbound=spacing;
-highfreqbound=spacing;
+flattened_spacing = floor(spacing);
+lowfreqbound=flattened_spacing;
+highfreqbound=flattened_spacing;
 
 % f = fit([1:length(residuals)]',(fourierProfile-predictions)','smoothingspline','SmoothingParam', 0.3);
 sharpresiduals = residuals; %f(1:length(residuals))';
@@ -121,7 +133,7 @@ sharpresiduals = residuals; %f(1:length(residuals))';
 % end
 
 %% Use a smoothed residual to find the bottoms of our peaks.
-for i=(spacing-1):-1:minbound 
+for i=(flattened_spacing-1):-1:minbound 
    
     thisval = sharpresiduals(i-1)-sharpresiduals(i);
     
@@ -139,7 +151,7 @@ for i=(spacing-1):-1:minbound
     preval = thisval;
 end
 %%
-for i=(spacing+1):1:maxbound
+for i=(flattened_spacing+1):1:maxbound
    
     thisval = sharpresiduals(i+1)-sharpresiduals(i);
     
@@ -159,31 +171,33 @@ end
 
 maxamplitude = max(residuals(minbound:maxbound))-min(residuals(minbound:maxbound));
 
-if lowfreqbound==(spacing-1) && highfreqbound~=spacing
+if lowfreqbound==(flattened_spacing-1) && highfreqbound~=flattened_spacing
     
-    highheight = (residuals(spacing) - residuals(highfreqbound));
-    highrun = fourierSampling(highfreqbound)-fourierSampling(spacing);
+    highheight = (residuals(flattened_spacing) - residuals(highfreqbound));
+    highrun = fourierSampling(highfreqbound)-fourierSampling(flattened_spacing);
 
     heightdistinct = highheight./maxamplitude;
     
-elseif highfreqbound==(spacing+1) && lowfreqbound~=spacing
+elseif highfreqbound==(flattened_spacing+1) && lowfreqbound~=flattened_spacing
     
-    lowheight = (residuals(spacing) - residuals(lowfreqbound));
-    lowrun = fourierSampling(spacing)-fourierSampling(lowfreqbound);
+    lowheight = (residuals(flattened_spacing) - residuals(lowfreqbound));
+    lowrun = fourierSampling(flattened_spacing)-fourierSampling(lowfreqbound);
 
     heightdistinct = lowheight./maxamplitude;
     
-elseif highfreqbound~=(spacing+1) && lowfreqbound~=(spacing-1)
+elseif highfreqbound~=(flattened_spacing+1) && lowfreqbound~=(flattened_spacing-1)
     % Find the distinctness of our peak based on the average height of the two
     % sides of the triangle
-    lowheight = residuals(spacing) - residuals(lowfreqbound);
-    highheight = residuals(spacing) - residuals(highfreqbound);
+    lowheight = residuals(flattened_spacing) - residuals(lowfreqbound);
+    highheight = residuals(flattened_spacing) - residuals(highfreqbound);
     
-    lowrun = fourierSampling(spacing)-fourierSampling(lowfreqbound);
-    highrun = fourierSampling(highfreqbound)-fourierSampling(spacing);
+    lowrun = fourierSampling(flattened_spacing)-fourierSampling(lowfreqbound);
+    highrun = fourierSampling(highfreqbound)-fourierSampling(flattened_spacing);
 
     avgheight = (lowheight+highheight)/2;
 %     avgrun = (lowrun+highrun)/2;
+
+    
 
     heightdistinct = max([lowheight highheight])./maxamplitude;
 else
@@ -204,13 +218,15 @@ end
 % spacing_ratio = (length(fourierProfile)./spacing);
 
 err =  heightdistinct; %(err/firsterr); 
-
+fourierSampling(flattened_spacing)
 if doplots
-    
+
     figure(2);
-    hold on; plot(spacing, residuals(spacing),'r*');
+    hold on; plot(spacing, residuals(flattened_spacing),'r*');
     hold off;
-    figure(1); title([' Quality: ' num2str(err) ]);
+    figure(1); 
+    plot(spacing, fourierProfile(flattened_spacing),'r*')
+    title([' Quality: ' num2str(err) ]);
         hold off;
     drawnow;
 %     pause;

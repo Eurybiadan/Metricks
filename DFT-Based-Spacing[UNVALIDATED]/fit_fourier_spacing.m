@@ -30,11 +30,11 @@ end
 imbox = floor(imbox(maxsizeind).BoundingBox);
 
 imbox(imbox<=0) = 1;
-width_diff = im_size(2)-(imbox(1)+imbox(3));
+width_diff = im_size(2)-(imbox(1)+imbox(3))+1;
 if width_diff  < 0 
     imbox(3) = imbox(3)+width_diff;
 end
-height_diff = im_size(1)-(imbox(2)+imbox(4));
+height_diff = im_size(1)-(imbox(2)+imbox(4))+1;
 if height_diff  < 0 
     imbox(4) = imbox(4)+height_diff;
 end
@@ -65,22 +65,22 @@ err = nan(size(roi));
   
 for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})
-        power_spect = fftshift(fft2(roi{r}));
+        upsample = 1;
+        power_spect = fftshift(fft2( imresize(roi{r},upsample) ));
 %         all_spect = cat(3,all_spect,abs(power_spect));
         power_spect = log10(abs(power_spect).^2);
-
-        
-        
+       
+%         figure(100); imagesc(power_spect); axis image;
 %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));
 %         power_spect_export = power_spect_export.*255;
 % %         
 %         imwrite(uint8(power_spect_export),['pwr_spect ' num2str(r) '.tif']);
 
-        rhosampling = .5;
+        rhosampling = .25;
         thetasampling = 1;
 
-        polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
+        [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
         polarroi = circshift(polarroi,-90,1);
         
         upper_n_lower = [1:45 136:225 316:360];
@@ -92,8 +92,8 @@ for r=1:length(pixel_spac(:))
         if ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
 
             [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], true);
-            pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)/rhosampling));
-            
+            pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
+            pixel_spac(r) = pixel_spac(r)/upsample;
         else
             pixel_spac(r) = NaN;
         end

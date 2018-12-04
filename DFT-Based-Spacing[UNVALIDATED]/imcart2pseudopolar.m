@@ -1,4 +1,4 @@
-function [ pseudoim ] = imcart2pseudopolar( im, rhoSampling, thetaSampling , location, method )
+function [ pseudoim, maxrho ] = imcart2pseudopolar( im, rhoSampling, thetaSampling , location, method )
 %FUNCTION [ pseudoim ] = imcart2pseudopolar( im, rhoSampling, thetaSampling )
 %   Robert Cooper
 %
@@ -44,6 +44,7 @@ Ty = Ty + location(2);
 pseudoim = interp2(X,Y,im,Rx,Ty,method);
 
 pseudoim(isnan(pseudoim)) = 0;
+maxrho = max(rho);
 % imagesc( pseudoim ); colormap gray; axis image;
 end
 

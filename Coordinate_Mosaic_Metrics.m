@@ -7,7 +7,7 @@
 clear;
 close all force;
 
-windowsize = [];
+windowsize = [55];
 %% Crop the coordinates/image to this size in [scale], and calculate the area from it.
 % If left empty, it uses the size of the image.
 
@@ -130,8 +130,8 @@ for i=1:size(fnamelist,1)
                 else
 
                     pixelwindowsize = [height width];
-                    diffwidth=0;
-                    diffheight=0;
+                    diffwidth=1;
+                    diffheight=1;
                 end
 
                 clipped_coords =coordclip(coords,[diffwidth  width-diffwidth],...
@@ -167,7 +167,10 @@ for i=1:size(fnamelist,1)
             %% Determine FFT Power Spectra %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
-                [pixel_spac, ~, quality] = fit_fourier_spacing(im, min(size(im)));
+                
+                clipped_im = im(round(clip_start_end(3):clip_start_end(4)), round(clip_start_end(1):clip_start_end(2)) );
+                
+                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)));
                 statistics.DFT_Row_Spacing = pixel_spac*scaleval;                
                 statistics.DFT_Quality = quality;
             end
