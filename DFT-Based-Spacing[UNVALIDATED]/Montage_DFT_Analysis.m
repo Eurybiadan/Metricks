@@ -60,6 +60,12 @@ imsize = size(imread( fullfile(thispath, fNames{1}) ));
 
 imsize = round( imsize(1:2).*rel_scale );
 
+fnamesplits = strsplit(fNames{1},'_');
+prefix=[];
+for f=1:5 % build our prefix.
+    prefix = [prefix fnamesplits{f} '_'];
+end
+
 myPool = parpool();
 
 parfor i=1:length(fNames)
@@ -139,89 +145,72 @@ if strcmp(unit,'microns (mm density)')
     density_map = (1000^2).*density_map;
 end
     
-% To find foveal center
-fig=figure(10); clf; hold on;
-imagesc(density_map.*threshold_mask); axis image;
-title('Drag/Resize the Rectangle over the fovea.');
-h=imrect(gca,[1 1 1536 1536]);
-h.Deletable = false;
-pos= wait(h);
 
-roi = poly2mask([pos(1) pos(1)+pos(3) pos(1)+pos(3) pos(1) pos(1)],...
-                [pos(2) pos(2) pos(2)+pos(4) pos(2)+pos(4) pos(2)],...
-                size(density_map,1), size(density_map,2));
-close(fig)
-threshdensitymap=density_map.*roi;
-quantile(threshdensitymap(threshdensitymap>0),.95)
-threshdensitymap(threshdensitymap<quantile(threshdensitymap(threshdensitymap>0),.95))=0;
+threshdensitymap=density_map;
+rois =threshdensitymap>quantile(threshdensitymap(threshdensitymap>0),.95);
+
+% Find our biggest cc- this will likely be the fovea.
+cc = bwconncomp(rois);
+
+numPixels = cellfun(@numel,cc.PixelIdxList);
+[biggest,idx] = max(numPixels);
+
+if length(numPixels)>1
+    numPixels = sort(numPixels,'descend')./biggest;
+    % If this section is not far and away the biggest region, 
+    % request that the user helps you out. Otherwise, use the biggest CC.
+    if any(numPixels(2:end)>0.8)
+        % To find foveal center
+        fig=figure(10); clf; hold on;
+        imagesc(density_map.*threshold_mask); axis image;
+        title('Drag/Resize the Rectangle over the fovea.');
+        h=imrect(gca,[1 1 1536 1536]);
+        h.Deletable = false;
+        pos= wait(h);
+
+        roi = poly2mask([pos(1) pos(1)+pos(3) pos(1)+pos(3) pos(1) pos(1)],...
+                        [pos(2) pos(2) pos(2)+pos(4) pos(2)+pos(4) pos(2)],...
+                        size(density_map,1), size(density_map,2));
+        close(fig)
+    else
+        bounding_box = regionprops(cc,'BoundingBox');
+        bounding_box = bounding_box(idx).BoundingBox;
+        roi = zeros(size(density_map));
+        roi(cc.PixelIdxList{idx}) = 1;
+    end
+end
+
+threshdensitymap=threshdensitymap.*roi;
 threshdensitymap(isnan(threshdensitymap))=0;
+threshdensitymap = threshdensitymap(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bounding_box(1)+bounding_box(3));
 
-maxes = imregionalmax(threshdensitymap.*imclose(threshold_mask,ones(11)));
+smoothmap = imgaussfilt(threshdensitymap,8);
 
-s = regionprops(maxes,'centroid');
-maxcoords = zeros(length(s),2);
-for i=1:length(s)
-    maxcoords(i,:)  = s(i).Centroid;
+figure(10); clf; hold on;
+imagesc(smoothmap); axis image;
+[clvls]=contour(smoothmap, [quantile(smoothmap(smoothmap>0),.975) quantile(smoothmap(smoothmap>0),.975)]);
+
+[maxlvl]=max(clvls(1,:));
+
+bloblocs = find(clvls(1,:)==maxlvl); % Sometimes we have multiple contour pieces at the same lvl.
+
+upperclvl=[];
+for b=1:length(bloblocs)
+    blobval = clvls(1 ,bloblocs(b));    
+    upperclvl = [upperclvl; clvls(:,bloblocs(b)+1:bloblocs(b)+clvls(2,bloblocs(b)))'];
 end
+convpts = convhull(upperclvl(:,1), upperclvl(:,2));
+foveapts = upperclvl(convpts,:);
+plot(foveapts(:,1),foveapts(:,2),'*');
 
-if size(maxcoords,1) > 3
-    figure(10); clf; hold on;
-    imagesc(density_map.*threshold_mask); axis image;
-    plot(maxcoords(:,1),maxcoords(:,2),'b.'); 
-    ellipsefit = fit_ellipse(maxcoords(:,1),maxcoords(:,2));
-    [maxcoordsth, maxcoordsr] = cart2pol(maxcoords(:,1)-ellipsefit.X0_in,maxcoords(:,2)-ellipsefit.Y0_in);
-    f=fit(maxcoordsth,maxcoordsr,'smoothingspline','SmoothingParam',0.9992513623689557);
+foveamask = ~poly2mask(foveapts(:,1)+bounding_box(1),foveapts(:,2)+bounding_box(2),size(blendedim,1),size(blendedim,2));
 
-
-    maxcoordsth = sort(maxcoordsth);
-    splinefitr = f(maxcoordsth);
-    [splinefitx, splinefity]= pol2cart(maxcoordsth, splinefitr);
-    splinefitx = splinefitx + ellipsefit.X0_in;
-    splinefity = splinefity + ellipsefit.Y0_in;
-
-    fovea_coords = [ellipsefit.X0_in ellipsefit.Y0_in];
-
-
-    % rotation matrix to rotate the axes with respect to an angle phi
-    cos_phi = cos( ellipsefit.phi );
-    sin_phi = sin( ellipsefit.phi );
-    R = [ cos_phi sin_phi; -sin_phi cos_phi ];
-
-    % the ellipse
-    theta_r         = linspace(0,2*pi);
-    ellipse_x_r     = ellipsefit.X0 + ellipsefit.a*cos( theta_r );
-    ellipse_y_r     = ellipsefit.Y0 + ellipsefit.b*sin( theta_r );
-    rotated_ellipse = R * [ellipse_x_r;ellipse_y_r];
-
-
-    plot( splinefitx, splinefity,'g.')
-    plot( rotated_ellipse(1,:),rotated_ellipse(2,:),'r' );
-
-    hold off;drawnow;
-
-    foveamask = ~poly2mask(splinefitx,splinefity,size(threshdensitymap,1),size(threshdensitymap,2));
-else
-    warning('Unable to find enough peaks for a foveal estimation.');
-    foveamask = ones(size(threshdensitymap));
-end
-% polardensity = imcart2pseudopolar(density_map, 1, 1, centerfovea);
-% figure(11); imagesc(polardensity);
-% 
-% figure(12); clf; hold on;
-% plot(mean([polardensity(1:2,:); polardensity(358:360,:)],'omitnan')); % Nasal
-% plot(mean(polardensity(89:93,:),'omitnan')); % Inferior
-% plot(mean(polardensity(179:183,:),'omitnan')); % Temporal
-% plot(mean(polardensity(269:273,:),'omitnan')); % Superior
+clear rois smoothmap
 
 %% Display and output
 result_path = fullfile(thispath,'Results');
 mkdir(result_path)
 
-fnamesplits = strsplit(fNames{1},'_');
-prefix=[];
-for f=1:5 % build our prefix.
-    prefix = [prefix fnamesplits{f} '_'];
-end
 
 %%
 save( fullfile(result_path,[prefix 'Fouriest_Result.mat']), '-v7.3' );
