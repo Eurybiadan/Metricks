@@ -31,6 +31,7 @@ if isempty(prior)
     fitParams.decay1 = (fourierProfile(1)*.36) /...
                         (fitParams.shift);
 
+    fitParams.exp1 = exp(1);
     [maxval, maxind] = max(fourierProfile);
 %     if maxind ~= 1 % If the maximum value isn't the first index, 
                    % then ensure that the fit doesn't start touching the
@@ -41,7 +42,7 @@ if isempty(prior)
     fitParams.offset1 = maxval-fitParams.scale1;
     fitParams.scale2 =  fitParams.offset1*.3679;
     fitParams.decay2 = (max(fourierSampling)-fitParams.shift)/ (fitParams.shift*.36);
-                        
+    fitParams.exp2 = exp(1);
         
 else
     fitParams = prior;
@@ -60,9 +61,9 @@ options = optimset('fmincon');
 options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off','Algorithm','interior-point');
 
 x1 = ParamsToX(fitParams);
-% [scale1 decay1 offset1 scale2 decay2 shift]
-vlb = [0.5 0.001 0.01 0.001  0.001  initshift-0.1];
-vub = [5 25   15   15     25    initshift+0.1];
+% [scale1 decay1 offset1 exp1 scale2 decay2 exp2 shift]
+vlb = [0.5 0.001 0.01 1 0.001  0.001 1  initshift-0.1];
+vub = [5 25   15   10 15     25       10  initshift+0.1];
 
 x = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
 
@@ -90,8 +91,8 @@ end
 residuals = medfilt1(residuals,3);
 preval = residuals(spacing_ind-1)-residuals(spacing_ind);
 
-%%
-minbound = 4;
+%% Find our closest peak
+minbound = 10;
 maxbound = length(fourierProfile)-2;
 platstart=NaN;
 for i=spacing_ind-1:-1:minbound
@@ -103,10 +104,10 @@ for i=spacing_ind-1:-1:minbound
         platstart = i; %The plateau would've started before this index if thisval is 0.
     end
     
-    if preval>=0 && thisval>=0 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
+    if preval>=0 && thisval>=-0.01 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
         spacing_ind=i; 
 
-    elseif thisval<0 && ((residuals(i-1)>0) || (residuals(i)>0))
+    elseif thisval<0 && ((residuals(i-1)>0.01) || (residuals(i)>0.01))
         if isnan(platstart)
             spacing_ind=i;
         else
@@ -122,6 +123,8 @@ for i=spacing_ind-1:-1:minbound
     end
     preval = thisval;
 end
+
+
 
 %% Determine Sharpness of the peak as an error measurment
 flattened_spacing = floor(spacing_ind);
@@ -260,7 +263,7 @@ end
 %
 % Convert parameter structure to vector of parameters to search over
 function x = ParamsToX(params)
-    x = [params.scale1 params.decay1 params.offset1 params.scale2 params.decay2 params.shift];
+    x = [params.scale1 params.decay1 params.offset1 params.exp1 params.scale2 params.decay2 params.exp2 params.shift];
 end
 
 
@@ -271,9 +274,11 @@ function params = XToParams(x,params)
 params.scale1 = x(1);
 params.decay1 = x(2);
 params.offset1 = x(3);
-params.scale2 = x(4);
-params.decay2 = x(5);
-params.shift = x(6);
+params.exp1 = x(4);
+params.scale2 = x(5);
+params.decay2 = x(6);
+params.exp2 = x(7);
+params.shift = x(8);
 end
 
 % preds =  ComputeModelPreds(params,t)
@@ -281,7 +286,7 @@ end
 % Compute the predictions of the model
 function fullExp = ComputeModelPreds(params,freqBase)
 
-fullExp = params.offset1 + params.scale1*exp( -params.decay1 * freqBase );
+fullExp = params.offset1 + params.scale1*params.exp1.^( -params.decay1 * freqBase );
 
 bottomExpLoc = find(freqBase>params.shift);
 bottomExpTime = freqBase(bottomExpLoc);
@@ -290,6 +295,6 @@ bottomExpTime = freqBase(bottomExpLoc);
 % value!   
 maxmatch = fullExp(bottomExpLoc(1))-params.scale2;
 
-fullExp(bottomExpLoc) = maxmatch + params.scale2*exp( -params.decay2 * (bottomExpTime-bottomExpTime(1)) );
+fullExp(bottomExpLoc) = maxmatch + params.scale2*params.exp2.^( -params.decay2 * (bottomExpTime-bottomExpTime(1)) );
 
 end

@@ -12,9 +12,10 @@ end
 % tic;
 
 im_size = size(test_image);
-if ~exist('roi_size','var')
+if ~exist('roi_size','var') 
     roi_size = im_size;
 end
+
 roi_step = floor(roi_size/4);
 interped_spac_map=[];
 
@@ -30,18 +31,26 @@ end
 imbox = floor(imbox(maxsizeind).BoundingBox);
 
 imbox(imbox<=0) = 1;
-width_diff = im_size(2)-(imbox(1)+imbox(3))+1;
+width_diff = im_size(2)-(imbox(1)+imbox(3));
 if width_diff  < 0 
     imbox(3) = imbox(3)+width_diff;
 end
-height_diff = im_size(1)-(imbox(2)+imbox(4))+1;
+height_diff = im_size(1)-(imbox(2)+imbox(4));
 if height_diff  < 0 
     imbox(4) = imbox(4)+height_diff;
 end
 
-if any( im_size <= roi_size)    
-    roi = {test_image};
+if any( im_size <= roi_size)        
+    % Our roi size should always be divisible by 2 (for simplicity).
+    if rem(min(roi_size),2) ~= 0
+        roi_size = min(roi_size)-1;
+    end
+    roi = {test_image(1:end-1,1:end-1)};
 else
+    % Our roi size should always be divisible by 2 (for simplicity).
+    if rem(roi_size,2) ~= 0
+        roi_size = roi_size-1;
+    end
     roi = cell(round((size(test_image)-roi_size)/roi_step));
 
     for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
@@ -62,39 +71,52 @@ numind = size(roi,1)*size(roi,2);
 pixel_spac = nan(size(roi));
 err = nan(size(roi));
 
-  
-for r=1:length(pixel_spac(:))
-    if ~isempty(roi{r})
-        upsample = 1;
-        power_spect = fftshift(fft2( imresize(roi{r},upsample) ));
-%         all_spect = cat(3,all_spect,abs(power_spect));
-        power_spect = log10(abs(power_spect).^2);
-       
-        figure(100); imagesc(power_spect); axis image;
-%         power_spect_export = power_spect-min(power_spect(:));
+  %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));
 %         power_spect_export = power_spect_export.*255;
 % %         
 %         imwrite(uint8(power_spect_export),['pwr_spect ' num2str(r) '.tif']);
+
+for r=1:length(pixel_spac(:))
+    if ~isempty(roi{r})        
+        
+%         if roi_size <= 256 % We don't want this run on massive images (RAM sink)
+% 
+%             padsize = 2^(nextpow2(roi_size)+1);
+%             padsize = (padsize-roi_size)/2;
+% 
+%             power_spect = fftshift(fft2( padarray(roi{r}, [padsize padsize]) ));
+%         else
+            power_spect = fftshift(fft2( roi{r} ));
+%         end
+%         all_spect = cat(3,all_spect,abs(power_spect));
+        power_spect = log10(abs(power_spect).^2);
+       
+%         figure(100); imagesc(power_spect); axis image;
+
 
         rhosampling = .5;
         thetasampling = 1;
 
         [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
         polarroi = circshift(polarroi,-90/thetasampling,1);
-        figure(101); imagesc(polarroi); axis image;
+%         figure(101); imagesc(polarroi); axis image;
         
         upper_n_lower = [thetasampling:45 136:225 316:360]/thetasampling;
         left_n_right = [46:135 226:315]/thetasampling;
         upper_n_lower_fourierProfile = mean(polarroi(upper_n_lower,:));
         left_n_right_fourierProfile = mean(polarroi(left_n_right,:));
         fullfourierProfile = mean(polarroi);
+%         figure(101); plot(upper_n_lower_fourierProfile); axis image;
 
         if ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], false);
+            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], true);
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
-            pixel_spac(r) = pixel_spac(r)/upsample;
+%             pixel_spac(r) = pixel_spac(r)/upsample;
+            if err(r) < 0.2
+                pixel_spac(r)
+            end
         else
             pixel_spac(r) = NaN;
         end
@@ -158,6 +180,7 @@ if length(roi) > 1
     
     figure(1);clf; imagesc((2/sqrt(3)).*interped_spac_map./interped_err_map); axis image;
     figure(2);clf; imagesc(interped_err_map./sum_map); axis image; colormap(flipud(jet(256)));
+    caxis([0 1])
     figure(3);clf; imagesc(sum_map); axis image; colormap gray;
 end
 

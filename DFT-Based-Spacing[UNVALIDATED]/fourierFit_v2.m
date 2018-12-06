@@ -25,6 +25,7 @@ end
 % Make initial guesses    
 fitParams.scale1 = max(fourierProfile)*0.9-min(fourierProfile);
 fitParams.decay1 = 1;
+fitParams.exp1 = exp(1);
 fitParams.offset1 = 0;
 fitParams.shift = 0;
 
@@ -43,8 +44,8 @@ options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off
 x1 = ParamsToX(fitParams);
 
 % scale decay offset shift
-vlb = [0.01 0.001  -10  0];
-vub = [15   15     10   max(fourierSampling)];
+vlb = [0.01 0.001  -10 1  0];
+vub = [15   15     10  10 max(fourierSampling)];
 
 x = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
 
@@ -63,8 +64,9 @@ end
 % Find the second zero crossing (where the fit intersects with the curve)
 residuals = predictions-fourierProfile;
 
+fitops = fitoptions('Method','SmoothingSpline','SmoothingParam',.9999,'Normalize','on');
 % residuals = medfilt1(residuals,7);
-f = fit([1:length(residuals)]',residuals','smoothingspline','SmoothingParam',.5);
+f = fit([1:length(residuals)]',residuals','SmoothingSpline',fitops);
 
 residuals = f(1:length(residuals))';
 
@@ -166,7 +168,7 @@ end
 %
 % Convert parameter structure to vector of parameters to search over
 function x = ParamsToX(params)
-    x = [params.scale1 params.decay1 params.offset1 params.shift];
+    x = [params.scale1 params.decay1 params.offset1 params.exp1 params.shift];
 end
 
 
@@ -177,9 +179,10 @@ function params = XToParams(x,params)
 params.scale1 = x(1);
 params.decay1 = x(2);
 params.offset1 = x(3);
+params.exp1 = x(4);
 % params.scale2 = x(4);
 % params.decay2 = x(5);
-params.shift = x(4);
+params.shift = x(5);
 end
 
 % preds =  ComputeModelPreds(params,t)
@@ -187,7 +190,7 @@ end
 % Compute the predictions of the model
 function fullExp = ComputeModelPreds(params,freqBase)
 
-fullExp = params.offset1 + params.scale1*exp( -params.decay1 * (freqBase-params.shift) );
+fullExp = params.offset1 + params.scale1*params.exp1.^( -params.decay1 * (freqBase-params.shift) );
 
 % bottomExpLoc = find(freqBase>params.shift);
 % bottomExpTime = freqBase(bottomExpLoc);
