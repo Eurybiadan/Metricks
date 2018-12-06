@@ -93,6 +93,23 @@ preval = residuals(spacing_ind-1)-residuals(spacing_ind);
 
 %% Find our closest peak
 minbound = 10;
+
+% This was an attempt at handling low frequency peaks.
+% maxbound = spacing_ind;
+% [pks, locs]=findpeaks(fliplr(residuals),'MinPeakHeight',0.01); % findpeaks only marks the rising edge. So flip it so it marks the falling edge.
+% 
+% locs = length(residuals)-locs+1;
+% pks = pks( locs<=maxbound & locs>=minbound );
+% locs = locs( locs<=maxbound & locs>=minbound );
+% 
+% [highest_val, highest_ind]=max(pks);
+% pks = pks./highest_val
+% 
+% if highest_ind ~= 1 && pks(1) <= 0.9
+%     spacing_ind = locs(highest_ind);
+% else
+%     spacing_ind = locs(1);
+% end
 maxbound = length(fourierProfile)-2;
 platstart=NaN;
 for i=spacing_ind-1:-1:minbound
@@ -125,17 +142,15 @@ for i=spacing_ind-1:-1:minbound
 end
 
 
-
 %% Determine Sharpness of the peak as an error measurment
 flattened_spacing = floor(spacing_ind);
 lowfreqbound=flattened_spacing;
 highfreqbound=flattened_spacing;
 
-% f = fit([1:length(residuals)]',(fourierProfile-predictions)','smoothingspline','SmoothingParam', 0.3);
 sharpresiduals = residuals; %f(1:length(residuals))';
-% if doplots
-%     figure(2); plot(sharpresiduals);
-% end
+%% Find our two closest peaks
+minbound = 10;
+maxbound = length(fourierProfile)-2;
 
 %% Use a smoothed residual to find the bottoms of our peaks.
 for i=(flattened_spacing-1):-1:minbound 

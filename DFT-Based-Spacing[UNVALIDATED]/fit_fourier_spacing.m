@@ -89,11 +89,9 @@ for r=1:length(pixel_spac(:))
 %         else
             power_spect = fftshift(fft2( roi{r} ));
 %         end
-%         all_spect = cat(3,all_spect,abs(power_spect));
         power_spect = log10(abs(power_spect).^2);
        
 %         figure(100); imagesc(power_spect); axis image;
-
 
         rhosampling = .5;
         thetasampling = 1;
@@ -111,25 +109,14 @@ for r=1:length(pixel_spac(:))
 
         if ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], true);
+            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], false);
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
-%             pixel_spac(r) = pixel_spac(r)/upsample;
-            if err(r) < 0.2
-                pixel_spac(r)
-            end
+%             if err(r) < 0.2
+%                 pixel_spac(r)
+%             end
         else
             pixel_spac(r) = NaN;
         end
-
-%         if pixel_spac(r)>13
-%             [pixel_spac(r), ~, err(r)] = fourierFit(fourierProfile,[], true);
-%             pixel_spac(r) = 1/ (pixel_spac(r) / (size(polarroi,2)*2));
-%             err(r);
-%             figure(100); imagesc(polarroi); axis image;
-%             figure(200); imagesc(roi{r}); colormap gray; axis image;
-%             drawnow;
-%         end
-        
     end
 end
 
