@@ -83,12 +83,18 @@ residuals = fourierProfile-predictions;
 spacing_val = fitParams.shift;
 spacing_ind = max(find(fourierSampling<=spacing_val));
 
+fitops = fitoptions('Method','SmoothingSpline','SmoothingParam',0.999995,'Normalize','on');
+% residuals = medfilt1(residuals,7);
+f = fit([1:length(residuals)]',residuals','SmoothingSpline',fitops);
+
+% residuals = medfilt1(residuals,5);
+
 if doplots
-    figure(2); clf; plot(fourierSampling, residuals); hold on; plot(fourierSampling, medfilt1(residuals,3));
+    figure(2); clf; plot(fourierSampling, residuals); hold on; plot(fourierSampling, f(1:length(residuals))');
     plot(spacing_val, residuals(spacing_ind),'b*'); 
 end
 
-residuals = medfilt1(residuals,3);
+residuals = f(1:length(residuals))';
 preval = residuals(spacing_ind-1)-residuals(spacing_ind);
 
 %% Find our closest peak
@@ -121,10 +127,10 @@ for i=spacing_ind-1:-1:minbound
         platstart = i; %The plateau would've started before this index if thisval is 0.
     end
     
-    if preval>=0 && thisval>=-0.01 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
+    if preval>=0 && thisval>=0 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
         spacing_ind=i; 
 
-    elseif thisval<0 && ((residuals(i-1)>0.01) || (residuals(i)>0.01))
+    elseif thisval<0 && ((residuals(i-1)>0) || (residuals(i)>0))
         if isnan(platstart)
             spacing_ind=i;
         else
@@ -217,8 +223,8 @@ elseif highfreqbound~=(flattened_spacing+1) && lowfreqbound~=(flattened_spacing-
     avgheight = (lowheight+highheight)/2;
 %     avgrun = (lowrun+highrun)/2;
 
-    
-
+%     spacing_ind = residuals(lowfreqbound:highfreqbound)
+%     flattened_spacing = round(spacing_ind);
     heightdistinct = max([lowheight highheight])./maxamplitude;
 else
     heightdistinct=0;

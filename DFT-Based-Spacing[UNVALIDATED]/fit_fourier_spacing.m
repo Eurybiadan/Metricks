@@ -77,28 +77,30 @@ err = nan(size(roi));
 % %         
 %         imwrite(uint8(power_spect_export),['pwr_spect ' num2str(r) '.tif']);
 
+
 for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
-%         if roi_size <= 256 % We don't want this run on massive images (RAM sink)
-% 
-%             padsize = 2^(nextpow2(roi_size)+1);
-%             padsize = (padsize-roi_size)/2;
-% 
-%             power_spect = fftshift(fft2( padarray(roi{r}, [padsize padsize]) ));
-%         else
+        if roi_size <= 256 % We don't want this run on massive images (RAM sink)
+
+            padsize = roi_size(1)*6; % For reasoning, cite this: https://arxiv.org/pdf/1401.2636.pdf
+            padsize = (padsize-roi_size(1))/2 + 1;
+
+            power_spect = fftshift(fft2( padarray(roi{r}, [padsize padsize]) ));
+        else
             power_spect = fftshift(fft2( roi{r} ));
-%         end
-        power_spect = log10(abs(power_spect).^2);
+        end
+        power_spect = imresize(log10(abs(power_spect).^2),[1024 1024]);
+        
        
-%         figure(100); imagesc(power_spect); axis image;
+       % figure(100); imagesc(power_spect); axis image;
 
         rhosampling = .5;
         thetasampling = 1;
 
-        [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'linear');
+        [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'makima');
         polarroi = circshift(polarroi,-90/thetasampling,1);
-%         figure(101); imagesc(polarroi); axis image;
+        %figure(101); imagesc(polarroi); axis image;
         
         upper_n_lower = [thetasampling:45 136:225 316:360]/thetasampling;
         left_n_right = [46:135 226:315]/thetasampling;
