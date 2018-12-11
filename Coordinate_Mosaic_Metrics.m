@@ -127,17 +127,24 @@ for i=1:size(fnamelist,1)
 
                     diffwidth  = (width-pixelwindowsize)/2;
                     diffheight = (height-pixelwindowsize)/2;
+                    
+                    if diffwidth<0
+                        diffwidth=0;
+                    end                    
+                    if diffheight<0
+                        diffheight=0;
+                    end
                 else
 
                     pixelwindowsize = [height width];
-                    diffwidth=1;
-                    diffheight=1;
+                    diffwidth=0;
+                    diffheight=0;
                 end
 
                 clipped_coords =coordclip(coords,[diffwidth  width-diffwidth],...
                                                  [diffheight height-diffheight],'i');
 
-                clip_start_end = [diffwidth  width-diffwidth diffheight height-diffheight];
+                clip_start_end = [diffwidth+1  width-diffwidth diffheight+1 height-diffheight];
             else
 
                 width  = max(coords(:,1)) - min(coords(:,1));
@@ -171,7 +178,8 @@ for i=1:size(fnamelist,1)
                 clipped_im = im(round(clip_start_end(3):clip_start_end(4)), round(clip_start_end(1):clip_start_end(2)) );
                 
                 [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)));
-                statistics.DFT_Row_Spacing = pixel_spac*scaleval;                
+                statistics.DFT_Row_Spacing = pixel_spac*scaleval;
+%                 pixel_spac*scaleval
                 statistics.DFT_Quality = quality;
             end
 
