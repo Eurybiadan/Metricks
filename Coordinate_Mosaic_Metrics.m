@@ -7,7 +7,7 @@
 clear;
 close all force;
 
-windowsize = [55];
+windowsize = [];
 %% Crop the coordinates/image to this size in [scale], and calculate the area from it.
 % If left empty, it uses the size of the image.
 
@@ -177,7 +177,7 @@ for i=1:size(fnamelist,1)
                 
                 clipped_im = im(round(clip_start_end(3):clip_start_end(4)), round(clip_start_end(1):clip_start_end(2)) );
                 
-                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)));
+                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)), true);
                 statistics.DFT_Row_Spacing = pixel_spac*scaleval;
 %                 pixel_spac*scaleval
                 statistics.DFT_Quality = quality;
