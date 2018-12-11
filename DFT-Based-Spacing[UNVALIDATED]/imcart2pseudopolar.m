@@ -1,4 +1,4 @@
-function [ pseudoim, maxrho ] = imcart2pseudopolar( im, rhoSampling, thetaSampling , location, method )
+function [ pseudoim, maxrho ] = imcart2pseudopolar( im, rhoSampling, thetaSampling , location, method, rhostart )
 %FUNCTION [ pseudoim ] = imcart2pseudopolar( im, rhoSampling, thetaSampling )
 %   Robert Cooper
 %
@@ -9,6 +9,10 @@ function [ pseudoim, maxrho ] = imcart2pseudopolar( im, rhoSampling, thetaSampli
 % Change rhoUpsampling and thetaSampling to increase/decrease the sampling of the image.
 % If you wish to upsample, then lower the *Sampling.
 % If you wish to downsample, then raise the *Sampling.
+
+if ~exist('rhostart','var') || isempty(rhostart)
+     rhostart =1;
+end
 
 if ~exist('rhoSampling','var') || isempty(rhoSampling)
      rhoSampling =1;
@@ -30,7 +34,7 @@ im = double(im);
 %%
 [X, Y]= meshgrid( 1:size(im,2), 1:size(im,1) );
 
-rho = 6:rhoSampling: floor(min(size(im))/2)-1;
+rho = rhostart:rhoSampling: floor(min(size(im))/2)-1;
 theta_step = thetaSampling*2*pi/360;
 theta = 0: theta_step: 2*pi-theta_step;
 

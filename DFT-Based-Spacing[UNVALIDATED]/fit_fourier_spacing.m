@@ -1,4 +1,4 @@
-function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size)
+function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling)
 
 
 if ~exist('test_image','var') || isempty(test_image)
@@ -14,6 +14,10 @@ end
 im_size = size(test_image);
 if ~exist('roi_size','var') 
     roi_size = im_size;
+end
+
+if ~exist('supersampling','var')
+    supersampling = false;
 end
 
 roi_step = floor(roi_size/4);
@@ -81,24 +85,25 @@ err = nan(size(roi));
 for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
-        if roi_size <= 256 % We don't want this run on massive images (RAM sink)
+        if supersampling% We don't want this run on massive images (RAM sink)
 
             padsize = roi_size(1)*6; % For reasoning, cite this: https://arxiv.org/pdf/1401.2636.pdf
             padsize = (padsize-roi_size(1))/2 + 1;
 
             power_spect = fftshift(fft2( padarray(roi{r}, [padsize padsize]) ));
+            power_spect = imresize(log10(abs(power_spect).^2),[2048 2048]);
+            rhostart = ceil(2048/min(im_size)); % Exclude the DC term from our radial average
         else
             power_spect = fftshift(fft2( roi{r} ));
+            power_spect = log10(abs(power_spect).^2);
+            rhostart=1; % Exclude the DC term from our radial average
         end
-        power_spect = imresize(log10(abs(power_spect).^2),[1024 1024]);
-        
-       
        % figure(100); imagesc(power_spect); axis image;
 
         rhosampling = .5;
         thetasampling = 1;
 
-        [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'makima');
+        [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'makima', rhostart);
         polarroi = circshift(polarroi,-90/thetasampling,1);
         %figure(101); imagesc(polarroi); axis image;
         
