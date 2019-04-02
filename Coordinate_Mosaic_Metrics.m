@@ -177,10 +177,15 @@ for i=1:size(fnamelist,1)
                 
                 clipped_im = im(round(clip_start_end(3):clip_start_end(4)), round(clip_start_end(1):clip_start_end(2)) );
                 
-                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)), true);
+                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)), false,'row');
                 statistics.DFT_Row_Spacing = pixel_spac*scaleval;
-%                 pixel_spac*scaleval
-                statistics.DFT_Quality = quality;
+                statistics.DFT_Row_Quality = quality;
+                
+                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)), false,'cell');
+                statistics.DFT_Cell_Spacing = pixel_spac*scaleval;
+                statistics.DFT_Cell_Quality = quality;
+                
+                
             end
 
 

@@ -83,7 +83,7 @@ residuals = fourierProfile-predictions;
 spacing_val = fitParams.shift;
 spacing_ind = max(find(fourierSampling<=spacing_val));
 
-fitops = fitoptions('Method','SmoothingSpline','SmoothingParam',0.999995,'Normalize','on');
+fitops = fitoptions('Method','SmoothingSpline','SmoothingParam',0.99995,'Normalize','on');
 % residuals = medfilt1(residuals,7);
 f = fit([1:length(residuals)]',residuals','SmoothingSpline',fitops);
 
@@ -130,7 +130,7 @@ for i=spacing_ind-1:-1:minbound
     if preval>=0 && thisval>=0 % It should only be increasing or flat- if it isn't anymore and heads down, kick out.
         spacing_ind=i; 
 
-    elseif thisval<0 && ((residuals(i-1)>0) || (residuals(i)>0))
+    elseif thisval<0 %&& ((residuals(i-1)>0) || (residuals(i)>0))
         if isnan(platstart)
             spacing_ind=i;
         else

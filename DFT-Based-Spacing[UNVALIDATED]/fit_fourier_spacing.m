@@ -1,4 +1,4 @@
-function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling)
+function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)
 
 
 if ~exist('test_image','var') || isempty(test_image)
@@ -18,6 +18,10 @@ end
 
 if ~exist('supersampling','var')
     supersampling = false;
+end
+
+if ~exist('row_or_cell','var')
+    row_or_cell = 'row';
 end
 
 roi_step = floor(roi_size/4);
@@ -114,13 +118,16 @@ for r=1:length(pixel_spac(:))
         fullfourierProfile = mean(polarroi);
 %         figure(101); plot(upper_n_lower_fourierProfile); axis image;
 
-        if ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
+        if strcmp(row_or_cell,'cell')  && ~all(isinf(left_n_right_fourierProfile)) && ~all(isnan(left_n_right_fourierProfile))
+
+            [pixel_spac(r), ~, err(r)] = fourierFit(left_n_right_fourierProfile,[], false);
+            pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
+            
+        elseif strcmp(row_or_cell,'row') && ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
 
             [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], false);
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
-%             if err(r) < 0.2
-%                 pixel_spac(r)
-%             end
+
         else
             pixel_spac(r) = NaN;
         end

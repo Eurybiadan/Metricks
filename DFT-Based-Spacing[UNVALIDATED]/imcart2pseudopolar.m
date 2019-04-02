@@ -11,7 +11,7 @@ function [ pseudoim, maxrho ] = imcart2pseudopolar( im, rhoSampling, thetaSampli
 % If you wish to downsample, then raise the *Sampling.
 
 if ~exist('rhostart','var') || isempty(rhostart)
-     rhostart =1;
+     rhostart =0;
 end
 
 if ~exist('rhoSampling','var') || isempty(rhoSampling)
