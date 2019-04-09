@@ -5,13 +5,14 @@ if ~exist('test_image','var') || isempty(test_image)
     [filename, pathname] = uigetfile('*.tif', 'Pick an image to segment');
 
     test_image = imread( fullfile(pathname, filename) );
-    if size(test_image,3) >1
-        test_image = test_image(:,:,1);
-    end
+    
 end
 % tic;
-
+if size(test_image,3) >1
+    test_image = test_image(:,:,1);
+end
 im_size = size(test_image);
+
 if ~exist('roi_size','var') 
     roi_size = im_size;
 end
@@ -48,12 +49,12 @@ if height_diff  < 0
     imbox(4) = imbox(4)+height_diff;
 end
 
-if any( im_size <= roi_size)        
+if any( im_size(1:2) <= roi_size)
     % Our roi size should always be divisible by 2 (for simplicity).
     if rem(min(roi_size),2) ~= 0
         roi_size = min(roi_size)-1;
     end
-    roi = {test_image(1:end-1,1:end-1)};
+    roi = {test_image(1:roi_size,1:roi_size)};
 else
     % Our roi size should always be divisible by 2 (for simplicity).
     if rem(roi_size,2) ~= 0
@@ -79,11 +80,7 @@ numind = size(roi,1)*size(roi,2);
 pixel_spac = nan(size(roi));
 err = nan(size(roi));
 
-  %         power_spect_export = power_spect-min(power_spect(:));
-%         power_spect_export = power_spect_export./max(power_spect_export(:));
-%         power_spect_export = power_spect_export.*255;
-% %         
-%         imwrite(uint8(power_spect_export),['pwr_spect ' num2str(r) '.tif']);
+          
 
 
 for r=1:length(pixel_spac(:))
@@ -102,7 +99,13 @@ for r=1:length(pixel_spac(:))
             power_spect = log10(abs(power_spect).^2);
             rhostart=1; % Exclude the DC term from our radial average
         end
-       % figure(100); imagesc(power_spect); axis image;
+        
+        figure(100); imagesc(power_spect); axis image;
+%         power_spect_export = power_spect-min(power_spect(:));
+%         power_spect_export = power_spect_export./max(power_spect_export(:));
+%         power_spect_export = power_spect_export.*255;
+% 
+%         imwrite(uint8(power_spect_export),['pwr_spect ' num2str(r) '.tif']);
 
         rhosampling = .5;
         thetasampling = 1;
@@ -179,10 +182,36 @@ if length(roi) > 1
     interped_err_map = interped_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     
-    figure(1);clf; imagesc((2/sqrt(3)).*interped_spac_map./interped_err_map); axis image;
-    figure(2);clf; imagesc(interped_err_map./sum_map); axis image; colormap(flipud(jet(256)));
-    caxis([0 1])
+    if strcmp(row_or_cell,'cell')
+       figure(1);clf; imagesc(interped_spac_map./interped_err_map); axis image;
+    elseif strcmp(row_or_cell,'row')
+        figure(1);clf; imagesc((2/sqrt(3)).*interped_spac_map./interped_err_map); axis image;        
+    end
+    
+    
+    
+%     [cmap, amap] = firecmap(quantile(scaled_errmap(scaled_errmap~=0), 0.01),...
+%                     quantile(scaled_errmap(scaled_errmap~=0), 0.25),...
+%                     quantile(scaled_errmap(scaled_errmap~=0), 0.05), 256);
+    [cmap, amap] = firecmap( 0.1882, 0.5608,0.3451, 256);
+    
+    
+    scaled_errmap = floor(255*(interped_err_map./sum_map));
+    scaled_errmap(isnan(scaled_errmap)) = 0;
+    
+    afullmap = zeros(size(scaled_errmap));
+    
+    for i=1:length(afullmap(:))
+        afullmap(i) = amap( scaled_errmap(i)+1 );
+    end    
+    
+                
+    figure(2);clf; errmap = image(scaled_errmap); colormap(cmap);
+    alpha(errmap,afullmap); axis image;
+    
     figure(3);clf; imagesc(sum_map); axis image; colormap gray;
+        
+    save( ['Fouriest_Result.mat'], '-v7.3' );
 end
 
 

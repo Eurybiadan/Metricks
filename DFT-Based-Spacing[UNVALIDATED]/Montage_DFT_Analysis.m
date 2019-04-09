@@ -66,7 +66,11 @@ for f=1:5 % build our prefix.
     prefix = [prefix fnamesplits{f} '_'];
 end
 
-myPool = parpool();
+if isempty(gcp)
+    myPool=parpool;
+else
+    myPool=gcp('nocreate');
+end
 
 parfor i=1:length(fNames)
     fNames{i}
@@ -155,7 +159,7 @@ cc = bwconncomp(rois);
 numPixels = cellfun(@numel,cc.PixelIdxList);
 [biggest,idx] = max(numPixels);
 
-if length(numPixels)>1
+if length(numPixels)>=1
     numPixels = sort(numPixels,'descend')./biggest;
     % If this section is not far and away the biggest region, 
     % request that the user helps you out. Otherwise, use the biggest CC.
@@ -183,12 +187,17 @@ end
 threshdensitymap=threshdensitymap.*roi;
 threshdensitymap(isnan(threshdensitymap))=0;
 threshdensitymap = threshdensitymap(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bounding_box(1)+bounding_box(3));
+%% Find the foveal center
+smoothmap = density_map;
+smoothmap = smoothmap(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bounding_box(1)+bounding_box(3));
+smoothmap(isnan(smoothmap)) = 0;
+smoothmap = imgaussfilt(smoothmap,8);
 
-smoothmap = imgaussfilt(threshdensitymap,8);
+smoothmaptheshold = quantile(smoothmap(smoothmap>0),.95);
 
 figure(10); clf; hold on;
 imagesc(smoothmap); axis image;
-[clvls]=contour(smoothmap, [quantile(smoothmap(smoothmap>0),.975) quantile(smoothmap(smoothmap>0),.975)]);
+[clvls]=contour(smoothmap, [smoothmaptheshold smoothmaptheshold]);
 
 [maxlvl]=max(clvls(1,:));
 
@@ -201,13 +210,70 @@ for b=1:length(bloblocs)
 end
 convpts = convhull(upperclvl(:,1), upperclvl(:,2));
 foveapts = upperclvl(convpts,:);
-plot(foveapts(:,1),foveapts(:,2),'*');
+plot(foveapts(:,1),foveapts(:,2),'.');
 
-foveamask = ~poly2mask(foveapts(:,1)+bounding_box(1),foveapts(:,2)+bounding_box(2),size(blendedim,1),size(blendedim,2));
+ellipsefit = fit_ellipse(foveapts(:,1),foveapts(:,2));
 
-clear rois smoothmap
+fovea_coords = [ellipsefit.X0_in ellipsefit.Y0_in];
+
+% rotation matrix to rotate the axes with respect to an angle phi
+cos_phi = cos( ellipsefit.phi );
+sin_phi = sin( ellipsefit.phi );
+R = [ cos_phi sin_phi; -sin_phi cos_phi ];
+
+% the ellipse
+theta_r         = linspace(0,2*pi);
+ellipse_x_r     = ellipsefit.X0 + ellipsefit.a*cos( theta_r );
+ellipse_y_r     = ellipsefit.Y0 + ellipsefit.b*sin( theta_r );
+rotated_ellipse = R * [ellipse_x_r;ellipse_y_r];
+
+plot( rotated_ellipse(1,:),rotated_ellipse(2,:),'r' );
+plot(fovea_coords(:,1), fovea_coords(:,2),'*');
+
+fovea_coords = fovea_coords+bounding_box(1:2);
+
+
+%% Make a foveal mask using active contour
+smtheta_r         = linspace(0,2*pi);
+smellipse_x_r     = ellipsefit.X0 + (ellipsefit.a/2)*cos( smtheta_r );
+smellipse_y_r     = ellipsefit.Y0 + (ellipsefit.b/2)*sin( smtheta_r );
+smrotated_ellipse = R * [smellipse_x_r;smellipse_y_r];
+
+smfoveamask = poly2mask(smrotated_ellipse(1,:),smrotated_ellipse(2,:),size(threshdensitymap,1),size(threshdensitymap,2));
+smbounding = regionprops(smfoveamask,'BoundingBox');
+foveamask= activecontour(smoothmap, smfoveamask,300);
+
+ccfovmask = bwconncomp(foveamask);
+
+if ccfovmask.NumObjects >= 1
+    region_info = regionprops(ccfovmask,'BoundingBox');
+    mostoverlap = 0;
+    mostind = 1;
+    
+    for i = 1: ccfovmask.NumObjects
+        olap = rectint(region_info(i).BoundingBox, smbounding.BoundingBox);
+        if olap>mostoverlap
+            mostoverlap = olap;
+            mostind = i;
+        end
+    end
+    
+    smfoveamask = ones(size(threshdensitymap,1),size(threshdensitymap,2));
+    smfoveamask(ccfovmask.PixelIdxList{mostind}) = 0;
+%     figure;  imagesc(smfoveamask)
+end
+
+foveamask = ones(size(blendedim,1),size(blendedim,2));
+
+foveamask(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bounding_box(1)+bounding_box(3)) = smfoveamask;
+
+% foveamask = ~poly2mask(foveapts(:,1)+bounding_box(1),foveapts(:,2)+bounding_box(2),size(blendedim,1),size(blendedim,2));
+% figure;  imagesc(foveamask)
+
+
 
 %% Display and output
+clear rois smoothmap
 result_path = fullfile(thispath,'Results');
 mkdir(result_path)
 
@@ -224,7 +290,7 @@ scaled_spacing = (blendedim.*scaling)-min(blendedim(:).*scaling);
 scaled_spacing = 255.*(scaled_spacing./ max(scaled_spacing(:)) );
 
 figure(2); imagesc( (blendedim.*scaling) ); axis image; colorbar;
-imwrite( uint8(scaled_spacing.*threshold_mask.*foveamask), parula(256), fullfile(result_path, [prefix 'thresh_montage_spacing_' num2str(scaling,'%5.2f') '.tif']))
+imwrite( uint8(scaled_spacing.*threshold_mask), parula(256), fullfile(result_path, [prefix 'thresh_montage_spacing_' num2str(scaling,'%5.2f') '.tif']))
 clear scaled_spacing;
 
 scaled_error = 255*blendederrim;
@@ -232,7 +298,7 @@ figure(3); imagesc(blendederrim); colormap(flipud(jet(256))); axis image; colorb
 imwrite( uint8(scaled_error), flipud(jet(256)),fullfile(result_path, [prefix 'thresh_montage_err_' num2str(scaling,'%5.2f') '.tif']))
 clear scaled_error;
 
-imwrite( uint8(imclose(threshold_mask,ones(11)).*foveamask.*255), fullfile(result_path, [prefix 'thresh_montage_mask_' num2str(scaling,'%5.2f') '.tif']));
+imwrite( uint8(imclose(threshold_mask,ones(11)).*255), fullfile(result_path, [prefix 'thresh_montage_mask_' num2str(scaling,'%5.2f') '.tif']));
 
 masked_density = density_map.*imclose(threshold_mask,ones(11)).*foveamask;
 
@@ -248,4 +314,26 @@ figure(5); imagesc( density_map.*imclose(threshold_mask,ones(11)).*foveamask ); 
 caxis([lower01 upper99]);
 imwrite( uint8(scaled_density.*imclose(threshold_mask,ones(11)).*foveamask),parula(256),fullfile(result_path, [prefix 'thresh_montage_density_' num2str(scaling,'%5.2f') '.tif']))
 clear scaled_density;
+
+%% Temp horizontal plot
+% band_radius = 256;
+% cmap = parula(256);
+% 
+% eccent_values = 1:length(band_avg_values);
+% eccent_values = scaling*(eccent_values-fovea_coords(1));
+% 
+% band_avg_values = mean(density_map(fovea_coords(2)-band_radius:fovea_coords(2)+bandradius,:),'omitnan');
+% 
+% scaled_band_values = band_avg_values-lower01;
+% scaled_band_values = 255.*(scaled_band_values./upper99);
+% 
+% 
+% for l=1:length(band_avg_values)-1
+%    
+%     plot(
+%     
+% end
+
+
+
 

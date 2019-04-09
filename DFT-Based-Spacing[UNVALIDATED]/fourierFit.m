@@ -11,9 +11,14 @@ end
 fourierProfile = fourierProfile(~isnan(fourierProfile));
 fourierProfile = fourierProfile(~isinf(fourierProfile));
 fourierProfile = fourierProfile-min(fourierProfile);
+
+fitSampling = 0.25;
+
 timeBase = 1:(length(fourierProfile));
+fineTimeBase = 1:fitSampling:(length(fourierProfile));
 
 fourierSampling =(timeBase/(size(fourierProfile,2)*2));
+fineFourierSampling =(fineTimeBase/(size(fourierProfile,2)*2));
 
 %% Start plot
 if doplots
@@ -66,7 +71,10 @@ vlb = [0.5 0.001 0.01 1 0.001  0.001 1  initshift-0.1];
 vub = [5 25   15   10 15     25       10  initshift+0.1];
 
 x = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
-
+% [warnmsg, msgid] = lastwarn;
+% if ~isempty(warnmsg) 
+%    disp('Wut'); 
+% end
 % Extract fit parameters
 fitParams = XToParams(x,fitParams);
 
@@ -90,33 +98,37 @@ f = fit([1:length(residuals)]',residuals','SmoothingSpline',fitops);
 % residuals = medfilt1(residuals,5);
 
 if doplots
-    figure(2); clf; plot(fourierSampling, residuals); hold on; plot(fourierSampling, f(1:length(residuals))');
+    figure(2); clf; plot(fourierSampling, residuals); hold on; plot(fineFourierSampling, f(1:fitSampling:length(residuals))');
     plot(spacing_val, residuals(spacing_ind),'b*'); 
 end
 
-residuals = f(1:length(residuals))';
+% Update the spacing index to be on the same scale as our sampling
+spacing_ind = spacing_ind/fitSampling;
+
+residuals = f(1:fitSampling:length(residuals))';
 preval = residuals(spacing_ind-1)-residuals(spacing_ind);
 
 %% Find our closest peak
-minbound = 10;
 
-% This was an attempt at handling low frequency peaks.
-% maxbound = spacing_ind;
-% [pks, locs]=findpeaks(fliplr(residuals),'MinPeakHeight',0.01); % findpeaks only marks the rising edge. So flip it so it marks the falling edge.
-% 
-% locs = length(residuals)-locs+1;
-% pks = pks( locs<=maxbound & locs>=minbound );
-% locs = locs( locs<=maxbound & locs>=minbound );
-% 
-% [highest_val, highest_ind]=max(pks);
-% pks = pks./highest_val
-% 
-% if highest_ind ~= 1 && pks(1) <= 0.9
-%     spacing_ind = locs(highest_ind);
-% else
-%     spacing_ind = locs(1);
-% end
+% Set the minbound to the bottom of the first downsweep, or 10 indexes in
+% (impossible spacing to us to detect anyway)
+diffresiduals = diff(residuals);
+
+if diffresiduals(1) >= 0
+    minbound = 10/fitSampling;
+else
+    for i=1:length(diffresiduals)
+        if diffresiduals(i) >= 0 
+            minbound = i;
+            break;
+        end
+    end
+end
+
 maxbound = length(fourierProfile)-2;
+
+
+
 platstart=NaN;
 for i=spacing_ind-1:-1:minbound
    
@@ -155,10 +167,8 @@ highfreqbound=flattened_spacing;
 
 sharpresiduals = residuals; %f(1:length(residuals))';
 %% Find our two closest peaks
-minbound = 10;
-maxbound = length(fourierProfile)-2;
 
-%% Use a smoothed residual to find the bottoms of our peaks.
+% Use a smoothed residual to find the bottoms of our peaks.
 for i=(flattened_spacing-1):-1:minbound 
    
     thisval = sharpresiduals(i-1)-sharpresiduals(i);
@@ -170,7 +180,7 @@ for i=(flattened_spacing-1):-1:minbound
         lowfreqbound=i; 
         if doplots
             figure(2); hold on;
-            plot(fourierSampling(lowfreqbound), residuals(lowfreqbound),'g*')
+            plot(fineFourierSampling(lowfreqbound), residuals(lowfreqbound),'g*')
         end
         break;
     end
@@ -188,7 +198,7 @@ for i=(flattened_spacing+1):1:maxbound
         highfreqbound=i;
         if doplots
             figure(2); hold on;
-            plot(fourierSampling(highfreqbound), residuals(highfreqbound),'g*')
+            plot(fineFourierSampling(highfreqbound), residuals(highfreqbound),'g*')
         end
         break;
     end
@@ -230,28 +240,17 @@ else
     heightdistinct=0;
 end
 
-
-% Coefficient of determination
-% SSres = sum(residuals.^2);
-% SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
-% n = length(fourierProfile);
-% p = length(x)-1;
-
-% err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
-
-% err = sum(residuals(2:end).^2);
-
-% spacing_ratio = (length(fourierProfile)./spacing);
-
-err =  heightdistinct; %(err/firsterr); 
+% Revert to our original sampling.
+spacing_ind = spacing_ind*fitSampling;
+err =  heightdistinct; 
 
 if doplots
 
     figure(2);
-    hold on; plot(fourierSampling(flattened_spacing), residuals(flattened_spacing),'r*');
+    hold on; plot(fineFourierSampling(flattened_spacing), residuals(flattened_spacing),'r*');
     hold off;
     figure(1); 
-    plot(fourierSampling(flattened_spacing), fourierProfile(flattened_spacing),'r*')
+    plot(fineFourierSampling(flattened_spacing), fourierProfile(floor(flattened_spacing*fitSampling)),'r*')
     title([' Quality: ' num2str(err) ]);
         hold off;
     drawnow;
