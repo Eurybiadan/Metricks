@@ -100,7 +100,7 @@ for r=1:length(pixel_spac(:))
             rhostart=1; % Exclude the DC term from our radial average
         end
         
-        figure(100); imagesc(power_spect); axis image;
+%         figure(100); imagesc(power_spect); axis image;
 %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));
 %         power_spect_export = power_spect_export.*255;

@@ -294,8 +294,12 @@ imwrite( uint8(scaled_spacing.*threshold_mask), parula(256), fullfile(result_pat
 clear scaled_spacing;
 
 scaled_error = 255*blendederrim;
-figure(3); imagesc(blendederrim); colormap(flipud(jet(256))); axis image; colorbar;
-imwrite( uint8(scaled_error), flipud(jet(256)),fullfile(result_path, [prefix 'thresh_montage_err_' num2str(scaling,'%5.2f') '.tif']))
+[cmap, amap] = firecmap(quantile(blendederrim(blendederrim~=0), 0.01),...
+                    quantile(blendederrim(blendederrim~=0), 0.25),...
+                    quantile(blendederrim(blendederrim~=0), 0.05), 256);
+
+figure(3); imagesc(blendederrim); colormap(cmap); axis image; colorbar;
+imwrite( uint8(scaled_error), cmap,fullfile(result_path, [prefix 'thresh_montage_err_' num2str(scaling,'%5.2f') '.png']), 'Transparency',amap)
 clear scaled_error;
 
 imwrite( uint8(imclose(threshold_mask,ones(11)).*255), fullfile(result_path, [prefix 'thresh_montage_mask_' num2str(scaling,'%5.2f') '.tif']));

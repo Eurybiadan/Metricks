@@ -210,14 +210,12 @@ maxamplitude = max(residuals(minbound:maxbound))-min(residuals(minbound:maxbound
 if lowfreqbound==(flattened_spacing-1) && highfreqbound~=flattened_spacing
     
     highheight = (residuals(flattened_spacing) - residuals(highfreqbound));
-    highrun = fourierSampling(highfreqbound)-fourierSampling(flattened_spacing);
 
     heightdistinct = highheight./maxamplitude;
     
 elseif highfreqbound==(flattened_spacing+1) && lowfreqbound~=flattened_spacing
     
     lowheight = (residuals(flattened_spacing) - residuals(lowfreqbound));
-    lowrun = fourierSampling(flattened_spacing)-fourierSampling(lowfreqbound);
 
     heightdistinct = lowheight./maxamplitude;
     
@@ -226,15 +224,7 @@ elseif highfreqbound~=(flattened_spacing+1) && lowfreqbound~=(flattened_spacing-
     % sides of the triangle
     lowheight = residuals(flattened_spacing) - residuals(lowfreqbound);
     highheight = residuals(flattened_spacing) - residuals(highfreqbound);
-    
-    lowrun = fourierSampling(flattened_spacing)-fourierSampling(lowfreqbound);
-    highrun = fourierSampling(highfreqbound)-fourierSampling(flattened_spacing);
 
-    avgheight = (lowheight+highheight)/2;
-%     avgrun = (lowrun+highrun)/2;
-
-%     spacing_ind = residuals(lowfreqbound:highfreqbound)
-%     flattened_spacing = round(spacing_ind);
     heightdistinct = max([lowheight highheight])./maxamplitude;
 else
     heightdistinct=0;
