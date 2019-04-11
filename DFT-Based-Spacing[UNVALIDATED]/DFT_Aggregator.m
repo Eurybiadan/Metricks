@@ -42,6 +42,7 @@ for f=1:length(fNames)
                                       1  montage_size(f,1); % BLC
                                       1                  1];% TLC 
     
+                                     
     % Shift all montage rectangles to a null point
     montage_rect{f} = montage_rect{f}-foveal_coords(f,:);    
 end
@@ -151,15 +152,56 @@ if size(maxcoords,1) > 3
 
     splinefitx = splinefitx+minglobalbounds(1)-768;
     splinefity = splinefity+minglobalbounds(2)-768;
-    threshold_mask = threshold_mask.*~poly2mask(splinefitx,splinefity,size(avg_spacing,1),size(avg_spacing,2));
+    threshold_mask = logical(threshold_mask.*~poly2mask(splinefitx,splinefity,size(avg_spacing,1),size(avg_spacing,2)));
     clear maxcoordsth maxcoords maxcoordsr splinefitr maxes threshspacingmap s
 end
 
 %% Plot our masked data.
-figure(1); imagesc(avg_spacing.*threshold_mask); title('Combined Spacing');axis image;
-caxis(quantile(avg_spacing(:).*threshold_mask(:),[0.05 0.95]));
-figure(2); imagesc(avg_error); colormap(flipud(jet(256))); axis image; colorbar; title('Average Error');
 
+spacingcaxis = quantile(avg_spacing(threshold_mask(:)),[0.01 0.99]);
+figure(1); imagesc(avg_spacing.*threshold_mask); title('Combined Spacing'); axis image;
+caxis(spacingcaxis); colorbar;
+
+%% Output spacing image
+rescaled_avg_spacing = (avg_spacing.*threshold_mask)-spacingcaxis(1);
+rescaled_avg_spacing(rescaled_avg_spacing<0) = 0;
+rescaled_avg_spacing = 255*(rescaled_avg_spacing./quantile(rescaled_avg_spacing(rescaled_avg_spacing~=0),0.99)); 
+rescaled_avg_spacing(rescaled_avg_spacing>255) = 255;
+
+imwrite(rescaled_avg_spacing, parula(256), [num2str(length(fNames)) 'subjects_combined_spacing.tif'])
+clear rescaled_avg_spacing;
+
+%% Output error image
+errquartiles = quantile(avg_error(avg_error~=0),[0.01 0.05 0.25]);
+[firemap, amap] = firecmap(errquartiles(1), errquartiles(3), errquartiles(2), 256);
+
+rescaled_avg_err = avg_error;
+rescaled_avg_err = 255*avg_error; 
+rescaled_avg_err(rescaled_avg_err>255) = 255;
+imwrite(rescaled_avg_err, firemap, [num2str(length(fNames)) 'subjects_combined_error.png'], 'Transparency',amap)
+
+figure(2); imagesc(rescaled_avg_err); colormap(firemap); axis image; colorbar; title('Average Error');
+clear rescaled_avg_err;
+
+%% Output density image
+avg_density = avg_spacing.*sqrt(3)/2;
+avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2);
+
+rescaled_avg_density = (avg_density.*threshold_mask)-quantile(avg_density(threshold_mask(:)),0.01);
+rescaled_avg_density(rescaled_avg_density<0) = 0;
+rescaled_avg_density = 255*(rescaled_avg_density./quantile(rescaled_avg_density(rescaled_avg_density~=0),0.99)); 
+rescaled_avg_density(rescaled_avg_density>255) = 255;
+
+figure(3); imagesc(avg_density.*threshold_mask); title('Combined Density'); axis image;
+caxis(quantile(avg_density(threshold_mask(:)),[0.01 0.99])); colorbar;
+imwrite(rescaled_avg_density, parula(256), [num2str(length(fNames)) 'subjects_combined_density.tif'])
+clear avg_density rescaled_avg_density;
+
+%% Output sum map
+
+imwrite(uint8(255*(combined_sum_map./max(combined_sum_map(:)))), parula(256), [num2str(length(fNames)) 'subjects_sum_map.tif']);
+
+%% Output directional plots
 maskedspac = avg_spacing.*threshold_mask;
 micron_position = (0:(1600/0.41))*0.41;
 strip_length = length(micron_position)-1;
@@ -268,6 +310,9 @@ weighted_avg_spacing_std_dev  = sqrt(weighted_avg_spacing_std_dev./weighted_std_
 weighted_avg_spacing_std_dev(isinf(weighted_avg_spacing_std_dev)) =0 ;
 
 
+lower01 = quantile(weighted_avg_spacing(~isnan(weighted_avg_spacing)),0.01);
+upper99 = quantile(weighted_avg_spacing(~isnan(weighted_avg_spacing)),0.99);
 
 figure(10); imagesc(weighted_avg_spacing.*threshold_mask); title('Combined Weighted Spacing');
+caxis([lower01 upper99]);
 figure(11); imagesc(weighted_avg_spacing_std_dev.*threshold_mask); title('Combined Weighted Spacing Weighted Std dev');

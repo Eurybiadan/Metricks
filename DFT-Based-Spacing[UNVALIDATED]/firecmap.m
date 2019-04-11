@@ -34,11 +34,11 @@ figmap = repmat(amap, [1 30]);
 cbar = (0:255)';
 cbar = repmat(cbar,[1 30]);
 
-fig= figure(110); hold on;
-im=imshow(cbar,cmap);
-alpha(figmap);
-axis image; hold off; drawnow;
+% fig= figure(110); hold on;
+% im=imshow(cbar,cmap);
+% alpha(figmap);
+% axis image; hold off; drawnow;
 
 
-% imwrite(cbar, (hotmap), 'hot_colorbar.png', 'Transparency',alphamap)
+% imwrite(cbar, cmap, 'hot_colorbar.png', 'Transparency',amap)
 end
