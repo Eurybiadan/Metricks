@@ -127,6 +127,13 @@ for i=1:size(fnamelist,1)
 
                     diffwidth  = (width-pixelwindowsize)/2;
                     diffheight = (height-pixelwindowsize)/2;
+                    
+                    if diffwidth<0
+                        diffwidth=0;
+                    end                    
+                    if diffheight<0
+                        diffheight=0;
+                    end
                 else
 
                     pixelwindowsize = [height width];
@@ -137,7 +144,7 @@ for i=1:size(fnamelist,1)
                 clipped_coords =coordclip(coords,[diffwidth  width-diffwidth],...
                                                  [diffheight height-diffheight],'i');
 
-                clip_start_end = [diffheight height-diffheight diffwidth  width-diffwidth];
+                clip_start_end = [diffwidth+1  width-diffwidth diffheight+1 height-diffheight];
             else
 
                 width  = max(coords(:,1)) - min(coords(:,1));
@@ -157,7 +164,7 @@ for i=1:size(fnamelist,1)
                 clipped_coords =coordclip(coords,[min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth],...
                                                  [min(coords(:,2))+diffheight max(coords(:,2))-diffheight],'i');
 
-                clip_start_end = [min(coords(:,2))+diffheight max(coords(:,2))-diffheight min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth];
+                clip_start_end = [min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth min(coords(:,2))+diffheight max(coords(:,2))-diffheight];
             end
 
 
@@ -167,8 +174,18 @@ for i=1:size(fnamelist,1)
             %% Determine FFT Power Spectra %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
-                [pixel_spac, interped_spac_map] = fit_fourier_spacing(im);
-                statistics.DFT_Spacing = pixel_spac*scaleval;                
+                
+                clipped_im = im(round(clip_start_end(3):clip_start_end(4)), round(clip_start_end(1):clip_start_end(2)) );
+                
+                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)), false,'row');
+                statistics.DFT_Row_Spacing = pixel_spac*scaleval;
+                statistics.DFT_Row_Quality = quality;
+                
+                [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)), false,'cell');
+                statistics.DFT_Cell_Spacing = pixel_spac*scaleval;
+                statistics.DFT_Cell_Quality = quality;
+                
+                
             end
 
 

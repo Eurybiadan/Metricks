@@ -1,6 +1,6 @@
 function [ scaling_row scaling_col ] = load_scaling_file( fileloc )
 % Robert Cooper 06-18-2012
-%   This function loads the needed scaling information for our metrics
+%   This function loads the needed scaling information for our metrics.
 
 fid = fopen(fileloc,'r');
 

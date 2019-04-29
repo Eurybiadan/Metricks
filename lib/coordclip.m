@@ -28,8 +28,8 @@ end
 
 % Determine max image size- assumes there are border coordinates (common in
 % Kaccie Li's code).
-imsizerow=max(coords(:,1));
-imsizecol=max(coords(:,2));
+imsizecol=max(coords(:,1));
+imsizerow=max(coords(:,2));
 
 % Making treshold variables
 minYthresh=thresholdy(1);
@@ -42,29 +42,29 @@ if strcmp(inoutorxor,'i')
 
     % Ensures that all coordinates are inside the box. - In accordance with
     % notebook decision
-    clipped_coords=coords( (coords(:,1)>minYthresh) & (coords(:,1)<maxYthresh) &...
-                        (coords(:,2)>minXthresh) & (coords(:,2)<maxXthresh),:);
+    clipped_coords=coords( (coords(:,2)>minYthresh) & (coords(:,2)<maxYthresh) &...
+                        (coords(:,1)>minXthresh) & (coords(:,1)<maxXthresh),:);
 
     
 elseif strcmp(inoutorxor,'o')
     
-    clipped_coords=coords( (coords(:,1)<minYthresh) | (coords(:,1)>maxYthresh) ...
-                        | (coords(:,2)<minXthresh) | (coords(:,2)>maxXthresh),:);
+    clipped_coords=coords( (coords(:,2)<minYthresh) | (coords(:,2)>maxYthresh) ...
+                        | (coords(:,1)<minXthresh) | (coords(:,1)>maxXthresh),:);
 
 elseif strcmp(inoutorxor,'xor')
 
     % Check rows coordinates for includable entries - In accordance with
     % notebook decision
-    clipped_coords = coords( xor( (coords(:,1)<=minYthresh) | (coords(:,1)>=maxYthresh) , ...
-                               (coords(:,2)<=minXthresh) | (coords(:,2)>=maxXthresh) ) ,:);
+    clipped_coords = coords( xor( (coords(:,2)<=minYthresh) | (coords(:,2)>=maxYthresh) , ...
+                               (coords(:,1)<=minXthresh) | (coords(:,1)>=maxXthresh) ) ,:);
 
     
 elseif strcmp(inoutorxor,'and')
     
     % Check rows coordinates for includable entries - In accordance with
     % notebook decision
-    clipped_coords = coords( ((coords(:,1)<=minYthresh) | (coords(:,1)>=maxYthresh)) & ...
-                             ((coords(:,2)<=minXthresh) | (coords(:,2)>=maxXthresh)) ,:);
+    clipped_coords = coords( ((coords(:,2)<=minYthresh) | (coords(:,2)>=maxYthresh)) & ...
+                             ((coords(:,1)<=minXthresh) | (coords(:,1)>=maxXthresh)) ,:);
     
 end
 
