@@ -1,4 +1,22 @@
 function [avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)
+% FUNCTION [avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)`
+% 
+% #### Inputs:
+% 
+% - **test_image**: The image that will be analyzed. The only requirement is that it is a 2d, grayscale (1 channel) image.
+% - **supersampling**: If "true", then each roi will be super-sampled in accordance with: [Bernstein et al.](https://arxiv.org/pdf/1401.2636.pdf) before calculating the DFT-derived spacing.
+% - **roi_size**: The side length (in pixels) of a sliding roi window- The roi will march along the image you've provided at a rate of 1/4 the size of the ROI, creating a "map" of spacing of the image.
+% - **row_or_cell**: The range of angles from the polar DFT that will be used to calculate the DFT-derived spacing. If "row", then it will be the upper and lower 90 degrees of the DFT. If "cell", it will be the left and right 90 degrees.
+% 
+% #### Outputs:
+% 
+% - **avg_pixel_spac**: The average spacing of the image.
+% - **interped_spac_map**: The spacing map of the input image (in pixel spacing).
+% - **interped_conf_map**: The confidence map of the input image.
+% - **sum_map**: The map corresponding to the amount of ROI overlap across the output map.
+% - **imbox**: The bounding region of valid (nonzero, NaN, or Inf) pixels.
+%
+%
 % Copyright (C) 2019 Robert F Cooper
 % 
 %     This program is free software: you can redistribute it and/or modify
