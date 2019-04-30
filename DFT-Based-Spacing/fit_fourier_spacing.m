@@ -1,5 +1,20 @@
-function [avg_pixel_spac, interped_spac_map, interped_err_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)
-
+function [avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)
+% Copyright (C) 2019 Robert F Cooper
+% 
+%     This program is free software: you can redistribute it and/or modify
+%     it under the terms of the GNU General Public License as published by
+%     the Free Software Foundation, either version 3 of the License, or
+%     (at your option) any later version.
+% 
+%     This program is distributed in the hope that it will be useful,
+%     but WITHOUT ANY WARRANTY; without even the implied warranty of
+%     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%     GNU General Public License for more details.
+% 
+%     You should have received a copy of the GNU General Public License
+%     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+%
+%
 
 if ~exist('test_image','var') || isempty(test_image)
     [filename, pathname] = uigetfile('*.tif', 'Pick an image to segment');
@@ -78,7 +93,7 @@ end
 
 numind = size(roi,1)*size(roi,2);
 pixel_spac = nan(size(roi));
-err = nan(size(roi));
+confidence = nan(size(roi));
 
           
 
@@ -123,12 +138,12 @@ for r=1:length(pixel_spac(:))
 
         if strcmp(row_or_cell,'cell')  && ~all(isinf(left_n_right_fourierProfile)) && ~all(isnan(left_n_right_fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(left_n_right_fourierProfile,[], false);
+            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], false);
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
             
         elseif strcmp(row_or_cell,'row') && ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
 
-            [pixel_spac(r), ~, err(r)] = fourierFit(upper_n_lower_fourierProfile,[], false);
+            [pixel_spac(r), ~, confidence(r)] = fourierFit(upper_n_lower_fourierProfile,[], false);
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
 
         else
@@ -140,13 +155,13 @@ end
 avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
 std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
 interped_spac_map = avg_pixel_spac;
-interped_err_map = err;
+interped_conf_map = confidence;
 
 
 %% If we've sampled over the region, then create the heat map
 if length(roi) > 1
     interped_spac_map=zeros(im_size);
-    interped_err_map=zeros(im_size);
+    interped_conf_map=zeros(im_size);
     interped_corrected_err_map=zeros(im_size);
     sum_map=zeros(im_size);
     
@@ -155,9 +170,9 @@ if length(roi) > 1
 
             if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
                 
-                thiserr = err(round(i/roi_step)+1,round(j/roi_step)+1)^2;
+                thiserr = confidence(round(i/roi_step)+1,round(j/roi_step)+1)^2;
 %                 if thiserr > .44
-                    interped_err_map(i:i+roi_size-1, j:j+roi_size-1) = interped_err_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;                
+                    interped_conf_map(i:i+roi_size-1, j:j+roi_size-1) = interped_conf_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;                
                     thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
                 
 
@@ -179,13 +194,13 @@ if length(roi) > 1
 %     interped_spac_map = interp2( X,Y, pixel_spac, Xq, Yq);
     
     interped_spac_map = interped_spac_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
-    interped_err_map = interped_err_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
+    interped_conf_map = interped_conf_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
     
     if strcmp(row_or_cell,'cell')
-       figure(1);clf; imagesc(interped_spac_map./interped_err_map); axis image;
+       figure(1);clf; imagesc(interped_spac_map./interped_conf_map); axis image;
     elseif strcmp(row_or_cell,'row')
-        figure(1);clf; imagesc((2/sqrt(3)).*interped_spac_map./interped_err_map); axis image;        
+        figure(1);clf; imagesc((2/sqrt(3)).*interped_spac_map./interped_conf_map); axis image;        
     end
     
     
@@ -193,25 +208,25 @@ if length(roi) > 1
 %     [cmap, amap] = firecmap(quantile(scaled_errmap(scaled_errmap~=0), 0.01),...
 %                     quantile(scaled_errmap(scaled_errmap~=0), 0.25),...
 %                     quantile(scaled_errmap(scaled_errmap~=0), 0.05), 256);
-    [cmap, amap] = firecmap( 0.1882, 0.5608,0.3451, 256);
+%     [cmap, amap] = firecmap( 0.1882, 0.5608,0.3451, 256);
     
     
-    scaled_errmap = floor(255*(interped_err_map./sum_map));
-    scaled_errmap(isnan(scaled_errmap)) = 0;
+    scaled_confmap = floor(255*(interped_conf_map./sum_map));
+    scaled_confmap(isnan(scaled_confmap)) = 0;
     
-    afullmap = zeros(size(scaled_errmap));
+    afullmap = zeros(size(scaled_confmap));
     
     for i=1:length(afullmap(:))
-        afullmap(i) = amap( scaled_errmap(i)+1 );
+        afullmap(i) = amap( scaled_confmap(i)+1 );
     end    
     
                 
-    figure(2);clf; errmap = image(scaled_errmap); colormap(cmap);
-    alpha(errmap,afullmap); axis image;
+    figure(2);clf; image((interped_conf_map./sum_map)); colormap hot;
+%     alpha(errmap,afullmap); axis image;
     
     figure(3);clf; imagesc(sum_map); axis image; colormap gray;
         
-    save( ['Fouriest_Result.mat'], '-v7.3' );
+%     save( ['Fouriest_Result.mat'], '-v7.3' );
 end
 
 

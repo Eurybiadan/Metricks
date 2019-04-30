@@ -1,7 +1,88 @@
-% Robert Cooper
-% 2017-09-29
+% Copyright (C) 2019 Robert F Cooper, created 2017-09-29
+% 
+%     This program is free software: you can redistribute it and/or modify
+%     it under the terms of the GNU General Public License as published by
+%     the Free Software Foundation, either version 3 of the License, or
+%     (at your option) any later version.
+% 
+%     This program is distributed in the hope that it will be useful,
+%     but WITHOUT ANY WARRANTY; without even the implied warranty of
+%     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%     GNU General Public License for more details.
+% 
+%     You should have received a copy of the GNU General Public License
+%     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %
-% This script calculates the coordinate metrics from a selected folder.
+% Metricks - A MATLAB package for analyzing the cone photoreceptor mosaic.
+%
+% Coordinate_Mosiac_Metrics_MAP creates a map of an image/coordinate set
+% across a set of image/coordinates.
+% 
+% To run this script, the script will prompt the user to select an folder containing
+% image/coordinate pair.
+% 
+% **At present, images must be 8-bit grayscale tifs, coordinates must be formatted 
+%   as a 2 column matrix (x,y), and must be named using the following convention,
+%   where [imagename] can be any valid filename:**
+% * Image File: [imagename].tif
+% * Coordinate File: [imagename]\_coords.csv
+% 
+% It will then prompt the user to select what the output unit should be. At present,
+% the options are:
+% * Microns (using millimeters^2 for density)
+% * Degrees
+% * Arcminutes
+% 
+% Once the output unit is select, it will give the user the option to pick a 
+% lookup table. The lookup table allows the software to analyze a folder of 
+% images from different subjects/timepoints/conditions. The lookup table itself
+% **must** be a 3 column 'csv' file, where the **first column** is a common 
+% identifier for image/coordinate pairs, the **second column** is the axial 
+% length (or '24' if the axial length is unknown) of the image/coordinate pairs,
+% and the **third column** is the pixels per degree of the image/coordinate pairs.
+% Each row must contain a different identifier/axial length/pixels per degree tuple.
+% 
+% An example common identifier could be a subject number, e.g, when working with the files:
+% - 1235_dateoftheyear_OD_0004.tif
+% - 1235_dateoftheyear_OD_0005.tif
+% 
+% Common identifiers could be "1235", "1235_dateoftheyear", "1235_dateoftheyear_OD".
+% If all three were placed in a LUT, then the one that matches the most (as determined
+% via levenshtein distance) will be used. In this example, we would use "1235_dateoftheyear_OD".
+% 
+% If we had another date, say: 1235_differentdateoftheyear_OD_0005.tif, then 
+% _only_ the identifier "1235" would match between all images. However, say the
+% two dates have different scales, then you would want to create two rows in the
+% look up table for each date, with identifiers like: "1235_dateoftheyear" and
+% "1235_differentdateoftheyear".
+% 
+% **If you do not wish to use a lookup table, then press "cancel", and the software
+% will allow you put in your own scale in UNITS/pixel.**
+% 
+% **This software will automatically adjust its window size to encompass up 
+% 100 coordinates.**
+% 
+% However, if you wish to specify a sliding window size, input the size 
+% (in the units you are going to in to the brackets of the variable "WINDOW_SIZE"
+% on line ~92 of Coordinate_Mosaic_Metrics_MAP.m.
+% 
+% **Window size inclusion is governed by the following rules:**
+% 
+% 1) If the tif is present and windowsize is not specified, the analysis will 
+% be done on everything within the dimensions of the image.
+% 2) If the tif is present and windowsize is specified, the assumed center of 
+% the image is calculated according to the borders of the tif. **In either case,
+% it doesn’t “care” how many (or even if there are any) cells in the image.**
+% 3) If the tif is not present and windowsize is not specified, the analysis will
+% be done on everything within the min and max coordinates in both x and y directions.
+% So if you have an image in which there is an absence of cells on one side, 
+% for example, you might end up with a clipped area that is not a square.
+% 4) If the tif is not present and windowsize is specified, the assumed center 
+% of the image is calculated according to the min and max coordinates in both 
+% x and y directions. So if you have an image in which there is an absence of 
+% cells on one side, the center will shift towards the other side of the image.
+%
+% This script creates a map of metrics from a selected folder.
 
 
 clear;
@@ -11,8 +92,6 @@ WINDOW_SIZE = [];
 
 %% Crop the coordinates/image to this size in [scale], and calculate the area from it.
 % If left empty, it uses the size of the image.
-
-
 basePath = which('Coordinate_Mosaic_Metrics.m');
 
 [basePath ] = fileparts(basePath);

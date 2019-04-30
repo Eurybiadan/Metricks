@@ -2,7 +2,15 @@
 
 Metricks is designed to take away the typically "ad-hoc" and unvalidated nature of much of the metrics extracted from Adaptive Optics Opthalmoscopy images.
 
-## Information about running Coordinate_Mosaic_Metrics.m:
+### It performs three main functions:
+* [Calculates metrics from a set of images, coordinates, and a scale file.](#Metrics) (Citation: Cooper RF, Wilk MA, Tarima S, Dubra A, Carroll J. “Evaluating descriptive metrics of the human cone mosaic.” Invest Ophthalmol Vis Sci. 2016 57(7):2993)
+* [Creates maps of any metric we can calcuate in the above paper.](#MetricsMap)
+* [Autmoatically estimates spacing and density in images with periodic structures.](#DFTMetrics) (Citation: Cooper RF, Aguirre GK, Morgan JIWM. "Fully-Automated Estimation of Cone Spacing and Density for Retinal Montages." Submitted.)
+* [Calculates the local anisotropy or orientation of retinal structures.](#Orientation) (Citation: Cooper RF, Lombardo M, Carroll J, Sloan KR, Lombardo G. 2015 “Methods for investigating the local spatial anisotropy and the preferred orientation of cones in adaptive optics retinal images.” Visual Neurosci. 2016 33:E005)
+
+## Information about how to calculate a set of metrics from images, coordinates and scale files: <a name="Metrics"></a>
+
+### Run Coordinate_Mosiac_Metrics.m:
 
 When run, the script will prompt the user to select a folder with image/coordinate pairs.
 
@@ -38,7 +46,6 @@ To specify a cropping window, input the size (in the units you are going to use)
 - If the tif is not present and windowsize is not specified, the analysis will be done on everything within the min and max coordinates in both x and y directions. So if you have an image in which there is an absence of cells on one side, for example, you might end up with a clipped area that is not a square.
 - If the tif is not present and windowsize is specified, the assumed center of the image is calculated according to the min and max coordinates in both x and y directions. So if you have an image in which there is an absence of cells on one side, the center will shift towards the other side of the image.
 
-
 The software will then run, and calculate every metric currently validated.
 
 At present, it calculates the following metrics from each image and coordinate pair:
@@ -61,7 +68,50 @@ At present, it calculates the following metrics from each image and coordinate p
 
 The results will then be placed in to a datestamped file within a "Results" folder as a subfolder of the one selected for analysis.
 
-## Don't thank me; cite me:
+## How to create a map of the above metrics: <a name="MetricsMap"></a>
+
+### Run Coordinate_Mosiac_Metrics_MAP.m:
+
+This script creates a map of an image/coordinate set across a set of image/coordinates. It shares a lot of the previous rules, so I will simply note the differences.
+
+As before, to run this script, the script will prompt the user to select an folder containing image/coordinate pair. It will then create a map of each image/coordinate pair in a folder.
+
+**However, unlike the above script, This software will automatically adjust its window size to encompass up 100 coordinates.**
+
+If you wish to specify the sliding window size, input the size (in the units you are going to in to the brackets of the variable "WINDOW_SIZE" on line ~92 of Coordinate_Mosaic_Metrics_MAP.m. The window is governed by the same rules outlined previously.
+
+## How to automatically assess the spacing/density of objects in an image or montage: <a name="DFTMetrics"></a>
+
+### Run fit_fourier_spacing.m:
+
+Running this function will ask the user to select the image that will be used for analysis. It will then calculate the DFT-derived spacing across the entire image, and return the average pixel spacing of the input image.
+
+This script can also be run with arguments, and has the form:
+
+`[avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)`
+
+#### Inputs:
+
+- **test_image**: The image that will be analyzed. The only requirement is that it is a 2d, grayscale (1 channel) image.
+- **supersampling**: If "true", then each roi will be super-sampled in accordance with: [Bernstein et al.](https://arxiv.org/pdf/1401.2636.pdf) before calculating the DFT-derived spacing.
+- **roi_size**: The side length (in pixels) of a sliding roi window- The roi will march along the image you've provided at a rate of 1/4 the size of the ROI, creating a "map" of spacing of the image.
+- **row_or_cell**: The range of angles from the polar DFT that will be used to calculate the DFT-derived spacing. If "row", then it will be the upper and lower 90 degrees of the DFT. If "cell", it will be the left and right 90 degrees.
+
+#### Outputs:
+
+- **avg_pixel_spac**: The average spacing of the image.
+- **interped_spac_map**: The spacing map of the input image (in pixel spacing).
+- **interped_conf_map**: The confidence map of the input image.
+- **sum_map**: The map corresponding to the amount of ROI overlap across the output map.
+- **imbox**: The bounding region of valid (nonzero, NaN, or Inf) pixels.
+
+### Run Montage_DFT_Analysis.m:
+
+
+
+## How to calculate the orientation of cells in an image: <a name="Orientation"></a>
+
+# Don't thank me; cite me:
 Every metric that is run via the main "Coordinate_Mosaic_Metrics.m" script has been validated and used in the following manuscript: **Cooper RF, Wilk MA, Tarima S, Dubra A, Carroll J. “Evaluating descriptive metrics of the human cone mosaic.” Invest Ophthalmol Vis Sci. 2016 57(7):2993.** You can also find formal definitions of each metric calculated here in that paper.
 
 **This package is free for use under GPL v3, but I ask that you please cite the above paper if you use this package.**
