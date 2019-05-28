@@ -229,14 +229,14 @@ if length(roi) > 1
 %     [cmap, amap] = firecmap( 0.1882, 0.5608,0.3451, 256);
     
     
-    scaled_confmap = floor(255*(interped_conf_map./sum_map));
-    scaled_confmap(isnan(scaled_confmap)) = 0;
+    %scaled_confmap = floor(255*(interped_conf_map./sum_map));
+    %scaled_confmap(isnan(scaled_confmap)) = 0;
     
-    afullmap = zeros(size(scaled_confmap));
+    %afullmap = zeros(size(scaled_confmap));
     
-    for i=1:length(afullmap(:))
-        afullmap(i) = amap( scaled_confmap(i)+1 );
-    end    
+    %for i=1:length(afullmap(:))
+    %   afullmap(i) = amap( scaled_confmap(i)+1 );
+    %end    
     
                 
     figure(2);clf; image((interped_conf_map./sum_map)); colormap hot;
