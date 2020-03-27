@@ -66,7 +66,7 @@ maxglobalbounds = max(cell2mat(montage_rect));
 
 global_dimension = fliplr(ceil(maxglobalbounds-minglobalbounds))+1; % Flipped so height/width (row/col), not width/height (x/y)
 
-minglobalbounds = -minglobalbounds;
+minglobalbounds = round(-minglobalbounds);
 %% Add all of the dft information to the montage, and combine.
 avg_spacing = zeros(global_dimension);
 % weighted_avg_spacing = zeros(global_dimension);
@@ -114,37 +114,43 @@ end
 threshold_mask = (avg_error>threshold); % & (combined_sum_map>10);
 
 %% To find foveal mask
-threshspacingmap=avg_spacing(minglobalbounds(2)-768:minglobalbounds(2)+768, minglobalbounds(1)-768:minglobalbounds(1)+768);
-quantile(threshspacingmap(threshspacingmap>0),.15)
-threshspacingmap(threshspacingmap>quantile(threshspacingmap(threshspacingmap>0),.15))=0;
+avg_density = avg_spacing.*sqrt(3)/2;
+avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2);
+
+threshspacingmap=avg_density(minglobalbounds(2)-768:minglobalbounds(2)+768, minglobalbounds(1)-768:minglobalbounds(1)+768);
+
+threshspacingmap(threshspacingmap<quantile(threshspacingmap(threshspacingmap>0),.85))=0;
 threshspacingmap(isnan(threshspacingmap))=0;
 
-maxes = imregionalmin(threshspacingmap);
-% maxes = imregionalmax(threshspacingmap);%TO DENSITY-TEMPORARY
+smoothmap = imgaussfilt(threshspacingmap,8);
+smoothmaptheshold= quantile(smoothmap(smoothmap>0),.85);
 
-s = regionprops(maxes,'centroid');
-maxcoords = zeros(length(s),2);
-for i=1:length(s)
-    maxcoords(i,:)  = s(i).Centroid;
+[clvls]=contour(smoothmap, [smoothmaptheshold smoothmaptheshold]);
+
+[maxlvl]=max(clvls(1,:));
+
+bloblocs = find(clvls(1,:)==maxlvl); % Sometimes we have multiple contour pieces at the same lvl.
+
+upperclvl=[];
+for b=1:length(bloblocs)
+    blobval = clvls(1 ,bloblocs(b));    
+    upperclvl = [upperclvl; clvls(:,bloblocs(b)+1:bloblocs(b)+clvls(2,bloblocs(b)))'];
 end
+convpts = convhull(upperclvl(:,1), upperclvl(:,2));
+foveapts = upperclvl(convpts,:);
 
-if size(maxcoords,1) > 3
+% foveapts = upperclvl;
+
+% plot(foveapts(:,1),foveapts(:,2),'.');
+
+
+if size(foveapts,1) > 3
     figure(10); clf; hold on;
-    imagesc(threshspacingmap); axis image;
-    plot(maxcoords(:,1),maxcoords(:,2),'b.'); 
-    ellipsefit = fit_ellipse(maxcoords(:,1),maxcoords(:,2));
-    [maxcoordsth, maxcoordsr] = cart2pol(maxcoords(:,1)-ellipsefit.X0_in,maxcoords(:,2)-ellipsefit.Y0_in);
-    f=fit(maxcoordsth,maxcoordsr,'smoothingspline','SmoothingParam',0.9992513623689557);
-
-
-    maxcoordsth = sort(maxcoordsth);
-    splinefitr = f(maxcoordsth);
-    [splinefitx, splinefity]= pol2cart(maxcoordsth, splinefitr);
-    splinefitx = splinefitx + ellipsefit.X0_in;
-    splinefity = splinefity + ellipsefit.Y0_in;
+    imagesc(smoothmap); axis image;
+    plot(foveapts(:,1),foveapts(:,2),'r.'); 
+    ellipsefit = fit_ellipse(foveapts(:,1),foveapts(:,2));
 
     fovea_coords = [ellipsefit.X0_in ellipsefit.Y0_in];
-
 
     % rotation matrix to rotate the axes with respect to an angle phi
     cos_phi = cos( ellipsefit.phi );
@@ -158,15 +164,50 @@ if size(maxcoords,1) > 3
     rotated_ellipse = R * [ellipse_x_r;ellipse_y_r];
 
 
-    plot( splinefitx, splinefity,'g.')
     plot( rotated_ellipse(1,:),rotated_ellipse(2,:),'r' );
+    plot(fovea_coords(:,1), fovea_coords(:,2),'*');
+
 
     hold off;drawnow;
 
-    splinefitx = splinefitx+minglobalbounds(1)-768;
-    splinefity = splinefity+minglobalbounds(2)-768;
-    threshold_mask = logical(threshold_mask.*~poly2mask(splinefitx,splinefity,size(avg_spacing,1),size(avg_spacing,2)));
-    clear maxcoordsth maxcoords maxcoordsr splinefitr maxes threshspacingmap s
+    fovea_coords = fovea_coords+minglobalbounds(1)-768;
+    fovea_coords = fovea_coords+minglobalbounds(2)-768;
+    
+    smtheta_r         = linspace(0,2*pi);
+    smellipse_x_r     = ellipsefit.X0 + (ellipsefit.a/2)*cos( smtheta_r );
+    smellipse_y_r     = ellipsefit.Y0 + (ellipsefit.b/2)*sin( smtheta_r );
+    smrotated_ellipse = R * [smellipse_x_r;smellipse_y_r];
+
+    smfoveamask = poly2mask(smrotated_ellipse(1,:),smrotated_ellipse(2,:),size(threshspacingmap,1),size(threshspacingmap,2));
+    smbounding = regionprops(smfoveamask,'BoundingBox');
+    foveamask= activecontour(smoothmap, smfoveamask,300);
+
+    ccfovmask = bwconncomp(foveamask);
+
+    if ccfovmask.NumObjects >= 1
+        region_info = regionprops(ccfovmask,'BoundingBox');
+        mostoverlap = 0;
+        mostind = 1;
+
+        for i = 1: ccfovmask.NumObjects
+            olap = rectint(region_info(i).BoundingBox, smbounding.BoundingBox);
+            if olap>mostoverlap
+                mostoverlap = olap;
+                mostind = i;
+            end
+        end
+
+        smfoveamask = ones(size(threshspacingmap,1),size(threshspacingmap,2));
+        smfoveamask(ccfovmask.PixelIdxList{mostind}) = 0;
+        figure;  imagesc(smfoveamask)
+    end
+
+    threshold_mask = true(size(avg_density));
+
+    threshold_mask(minglobalbounds(2)-768:minglobalbounds(2)+768, minglobalbounds(1)-768:minglobalbounds(1)+768) = smfoveamask;
+
+%     threshold_mask = logical(threshold_mask.*~poly2mask(splinefitx,splinefity,size(avg_spacing,1),size(avg_spacing,2)));
+%     clear maxcoordsth maxcoords maxcoordsr splinefitr maxes threshspacingmap s
 end
 
 %% Plot our masked data.
@@ -215,21 +256,23 @@ clear avg_density rescaled_avg_density;
 imwrite(uint8(255*(combined_sum_map./max(combined_sum_map(:)))), parula(256), [num2str(length(fNames)) 'subjects_sum_map.tif']);
 
 %% Output directional plots
-maskedspac = avg_spacing.*threshold_mask;
+avg_density = avg_spacing.*sqrt(3)/2;
+avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2);
+maskedspac = avg_density.*threshold_mask;
 micron_position = (0:(1600/0.41))*0.41;
 strip_length = length(micron_position)-1;
 figure(10); clf; 
 % Superior
-sup_strip = mean(flipud(maskedspac(minglobalbounds(2)-strip_length:minglobalbounds(2),minglobalbounds(1)-180:minglobalbounds(1)+180)),2);
+sup_strip = mean(flipud(maskedspac(minglobalbounds(2)-strip_length:minglobalbounds(2),minglobalbounds(1)-180:minglobalbounds(1)+180)),2, 'omitnan');
 plot(micron_position,sup_strip); hold on;
 % Inferior
-inf_strip = mean(maskedspac(minglobalbounds(2):minglobalbounds(2)+strip_length, minglobalbounds(1)-180:minglobalbounds(1)+180),2);
+inf_strip = mean(maskedspac(minglobalbounds(2):minglobalbounds(2)+strip_length, minglobalbounds(1)-180:minglobalbounds(1)+180),2, 'omitnan');
 plot(micron_position,inf_strip);
 % Nasal
-nasal_strip = mean(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1):minglobalbounds(1)+strip_length), 1);
+nasal_strip = mean(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1):minglobalbounds(1)+strip_length), 1, 'omitnan');
 plot(micron_position, nasal_strip);
 % Temporal
-temp_strip = mean(fliplr(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1)-strip_length:minglobalbounds(1))), 1);
+temp_strip = mean(fliplr(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1)-strip_length:minglobalbounds(1))), 1, 'omitnan');
 plot(micron_position,temp_strip);
 legend('Superior','Inferior','Nasal','Temporal')
 
@@ -241,55 +284,64 @@ clear maskedspac temp_strip nasal_strip inf_strip sup_strip
 return;
 
 %% Determine average/stddev of all data.
-spacing_std_dev = zeros(global_dimension);
+spacing_std_dev = nan(global_dimension);
 
+
+% For finding outliers:
+figure(1); clf; hold on;
+    
 
 % Find the std deviations of all of the subjects.
 for f=1:length(fNames)
     disp(['Calculating Standard Deviation: ' num2str(f) ' of ' num2str(length(fNames))])
-    load( fullfile(thispath, fNames{f}), 'blendedim','sum_map');
-    
-    sum_map=sum_map>0;
+    load( fullfile(thispath, fNames{f}), 'blendedim');
     
     rowrange = round((montage_rect{f}(1,2):montage_rect{f}(3,2))+minglobalbounds(2)+1);
     colrange = round((montage_rect{f}(1,1):montage_rect{f}(3,1))+minglobalbounds(1)+1);
     
     if isempty(strfind(fNames{f}, global_eye)) % If it doesn't match our eye, flip the montage data.
         blendedim = fliplr(blendedim);
-        sum_map = fliplr(sum_map);
     end
     
     % TO DENSITY - TEMPORARY
-%     blendedim = sqrt(3)./ (2*(blendedim*scaling).^2);
-%     blendedim = (1000^2).*blendedim;
-%     spacing_std_dev( rowrange, colrange) = spacing_std_dev( rowrange, colrange)+ ...
-%                                        sum( cat(3, (blendedim.*sum_map), ...
-%                                                     -avg_spacing( rowrange, colrange).*sum_map) ,3,'omitnan').^2;                                                
+    blendedim = sqrt(3)./ (2*(blendedim*scaling).^2);
+    blendedim = (1000^2).*blendedim;
+    
 
-    spacing_std_dev( rowrange, colrange) = spacing_std_dev( rowrange, colrange)+ ...
-                                           sum( cat(3, (scaling.*blendedim.*sum_map).*(2/sqrt(3)), ...
-                                                        -avg_spacing( rowrange, colrange).*sum_map) ,3,'omitnan').^2;
+    thisdiff = sum( cat(3, blendedim, -avg_density( rowrange, colrange)) ,3).^2; % This line is good. Nans need to be carried through.
+    
+%     thisdiff =  sum( cat(3, (scaling.*blendedim).*(2/sqrt(3)), -avg_spacing( rowrange, colrange)) ,3).^2;
+
+    spacing_std_dev( rowrange, colrange) = sum( cat(3,spacing_std_dev( rowrange, colrange), thisdiff), 3,'omitnan'); 
+     clear thisdiff;
+
 
     clear blendedim sum_map rowrange colrange
 end
 
-spacing_std_dev = sqrt(spacing_std_dev./(combined_sum_map-1));
+% plot(micron_position,temp_strip,'k', 'LineWidth',3);
 
+ spacing_std_dev = spacing_std_dev./(combined_sum_map-1);
+ spacing_std_dev(isinf(spacing_std_dev)) =0;
+ spacing_std_dev = sqrt(spacing_std_dev);
+ maskedspac = spacing_std_dev.*threshold_mask;
 
 figure(3); imagesc(spacing_std_dev.*threshold_mask); title('Combined Spacing Std dev');
 
-maskedspac = spacing_std_dev.*threshold_mask;
-figure(20); clf; 
+
+figure(20); clf; hold on;
 % Superior
-plot(micron_position,mean(flipud(maskedspac(minglobalbounds(2)-strip_length:minglobalbounds(2),minglobalbounds(1)-180:minglobalbounds(1)+180)),2)); hold on;
+plot(micron_position/291,mean(flipud(maskedspac(minglobalbounds(2)-strip_length:minglobalbounds(2),minglobalbounds(1)-180:minglobalbounds(1)+180)),2,  'omitnan')); hold on;
 % Inferior
-plot(micron_position,mean(maskedspac(minglobalbounds(2):minglobalbounds(2)+strip_length, minglobalbounds(1)-180:minglobalbounds(1)+180),2));
+plot(micron_position/291,mean(maskedspac(minglobalbounds(2):minglobalbounds(2)+strip_length, minglobalbounds(1)-180:minglobalbounds(1)+180),2, 'omitnan'));
 % Nasal
-nasal_strip = mean(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1):minglobalbounds(1)+strip_length), 1);
-plot(micron_position, nasal_strip);
+nasal_strip = mean(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1):minglobalbounds(1)+strip_length), 1,  'omitnan');
+plot(micron_position/291, nasal_strip);
 % Temporal
-temp_strip = mean(fliplr(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1)-strip_length:minglobalbounds(1))), 1);
-plot(micron_position,temp_strip);
+temp_strip = mean(fliplr(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1)-strip_length:minglobalbounds(1))), 1,  'omitnan');
+plot(micron_position/291,temp_strip);
+legend('Superior','Inferior','Nasal','Temporal')
+
 clear maskedspac temp_strip nasal_strip
 return;
 

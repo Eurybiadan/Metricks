@@ -175,7 +175,7 @@ for ii=1:length(coords)
 end
 hold off;
 figure(30);
-% saveas(gcf, [fname(1:end-4) '_radon_allsides.eps'],'epsc');
+saveas(gcf, [fname(1:end-4) '_radon_allsides.svg']);
 saveas(gcf, [fname(1:end-4) '_radon_allsides.tif']);
 
 figure(31); imagesc(im); colormap gray; axis image; hold on;
