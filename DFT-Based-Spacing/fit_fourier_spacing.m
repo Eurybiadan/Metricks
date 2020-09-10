@@ -1,12 +1,13 @@
-function [avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)
-% FUNCTION [avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell)`
+function [avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell, roi_step)
+% FUNCTION [avg_pixel_spac, interped_spac_map, interped_conf_map, sum_map, imbox ] = fit_fourier_spacing(test_image, roi_size, supersampling, row_or_cell, roi_step)
 % 
 % #### Inputs:
 % 
 % - **test_image**: The image that will be analyzed. The only requirement is that it is a 2d, grayscale (1 channel) image.
+% - **roi_size**: The side length (in pixels) of a sliding roi window- The roi will march along the image you've provided at a rate of 1/roi_step the size of the ROI, creating a "map" of spacing of the image.
 % - **supersampling**: If "true", then each roi will be super-sampled in accordance with: [Bernstein et al.](https://arxiv.org/pdf/1401.2636.pdf) before calculating the DFT-derived spacing.
-% - **roi_size**: The side length (in pixels) of a sliding roi window- The roi will march along the image you've provided at a rate of 1/4 the size of the ROI, creating a "map" of spacing of the image.
 % - **row_or_cell**: The range of angles from the polar DFT that will be used to calculate the DFT-derived spacing. If "row", then it will be the upper and lower 90 degrees of the DFT. If "cell", it will be the left and right 90 degrees.
+% - **roi_step**: The step size of our sliding window. If undefined, it will default to 1/4 of the roi_size.
 % 
 % #### Outputs:
 % 
@@ -55,10 +56,12 @@ if ~exist('supersampling','var')
 end
 
 if ~exist('row_or_cell','var')
-    row_or_cell = 'row';
+    row_or_cell = 'cell';
 end
 
-roi_step = floor(roi_size/4);
+if ~exist('roi_step','var')
+    roi_step = floor(roi_size/4);
+end
 interped_spac_map=[];
 
 imcomps = bwconncomp( imclose(test_image>0,ones(5)) );
@@ -84,10 +87,16 @@ end
 
 if any( im_size(1:2) <= roi_size)
     % Our roi size should always be divisible by 2 (for simplicity).
-    if rem(min(roi_size),2) ~= 0
-        roi_size = min(roi_size)-1;
+    if rem(max(roi_size),2) ~= 0
+        roi_size = max(roi_size)-1;
     end
-    roi = {test_image(1:roi_size,1:roi_size)};
+    
+    % If our image is oblong and smaller than a default roi_size, then pad
+    % it to be as large as the largest edge.
+    padsize = ceil((max(roi_size)-im_size)/2);
+    roi = {padarray(test_image,padsize,'both')};
+    
+
 else
     % Our roi size should always be divisible by 2 (for simplicity).
     if rem(roi_size,2) ~= 0
@@ -100,11 +109,11 @@ else
 
             numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
             
-            if numzeros < (roi_size*roi_size)*0.05
+%             if numzeros < (roi_size*roi_size)*0.05
                 roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
-            else
-                roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
-            end
+%             else
+%                 roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+%             end
         end
     end
 end
@@ -115,8 +124,8 @@ confidence = nan(size(roi));
 
           
 
-
-for r=1:length(pixel_spac(:))
+tic;
+parfor r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
         if supersampling% We don't want this run on massive images (RAM sink)
@@ -133,7 +142,7 @@ for r=1:length(pixel_spac(:))
             rhostart=1; % Exclude the DC term from our radial average
         end
         
-%         figure(100); imagesc(power_spect); axis image;
+%         figure(100); imagesc(roi{r}); axis image;
 %         power_spect_export = power_spect-min(power_spect(:));
 %         power_spect_export = power_spect_export./max(power_spect_export(:));
 %         power_spect_export = power_spect_export.*255;
@@ -156,7 +165,10 @@ for r=1:length(pixel_spac(:))
 
         if strcmp(row_or_cell,'cell')  && ~all(isinf(left_n_right_fourierProfile)) && ~all(isnan(left_n_right_fourierProfile))
 
-            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], false);
+            
+            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], true);
+%             [pixel_spac(r), confidence(r)] = fourierFit_rough(left_n_right_fourierProfile, true)
+%             confidence(r)
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
             
         elseif strcmp(row_or_cell,'row') && ~all(isinf(upper_n_lower_fourierProfile)) && ~all(isnan(upper_n_lower_fourierProfile))
@@ -168,7 +180,9 @@ for r=1:length(pixel_spac(:))
             pixel_spac(r) = NaN;
         end
     end
+    
 end
+toc;
 
 avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
 std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
@@ -183,6 +197,8 @@ if length(roi) > 1
     interped_corrected_err_map=zeros(im_size);
     sum_map=zeros(im_size);
     
+    roi_coverage=roi_size; %round(roi_size/4);
+    
     for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
         for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
@@ -190,13 +206,13 @@ if length(roi) > 1
                 
                 thiserr = confidence(round(i/roi_step)+1,round(j/roi_step)+1)^2;
 %                 if thiserr > .44
-                    interped_conf_map(i:i+roi_size-1, j:j+roi_size-1) = interped_conf_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr;                
+                    interped_conf_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = interped_conf_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + thiserr;                
                     thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
                 
 
-                    interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) = interped_spac_map(i:i+roi_size-1, j:j+roi_size-1) + thiserr*thisspac;
+                    interped_spac_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = interped_spac_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + thiserr*thisspac;
 
-                    sum_map(i:i+roi_size-1, j:j+roi_size-1) = sum_map(i:i+roi_size-1, j:j+roi_size-1) + 1;
+                    sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + 1;
 
 %                 end
             else
@@ -239,7 +255,7 @@ if length(roi) > 1
     %end    
     
                 
-    figure(2);clf; image((interped_conf_map./sum_map)); colormap hot;
+    figure(2);clf; imagesc((interped_conf_map./sum_map)); colormap hot;
 %     alpha(errmap,afullmap); axis image;
     
     figure(3);clf; imagesc(sum_map); axis image; colormap gray;

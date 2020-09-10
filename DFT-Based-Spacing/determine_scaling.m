@@ -94,6 +94,8 @@ function [scaling_information, selectedunit, lut] = determine_scaling(basepath, 
             end
         end
     end
+    
+    scaling_information=scaling_information';
 end
 
 function [ scaling_row, scaling_col ] = load_scale_file( fileloc )

@@ -4,21 +4,23 @@
 
 % clear;
 % close all;
-% 
-% [fname pathname] = uigetfile('*.txt;*.csv');
+
+[fname pathname] = uigetfile('*.txt;*.csv');
 
 % coords = dlmread('RFC_68600_cones_mm_0p39486_coords.csv');
 % coords = dlmread('RFC_68600_cones_mm_0p39486_coords_jittered.csv');
 % coords = dlmread('RFC_68600_cones_mm_0p39486_coords_-30deg.csv');
-% coords = dlmread(fullfile(pathname,fname));
+coords = dlmread(fullfile(pathname,fname));
+im = imread(fullfile(pathname, [fname(1:end-11) '.tif'] ));
 % coords = dlmread('angle_phantom.csv');
 
 triangulation = delaunayTriangulation(coords);
-six_sided_deg=ones(size(coords,1),1).*-100;
-six_sided=[];
+all_deg=ones(size(coords,1),1).*-100;
+all_centers=[];
 degs=[];
 direction=[];
 all_angle=[];
+all_sides=[];
 
 for i=1:length(triangulation.Points)
     
@@ -26,7 +28,11 @@ for i=1:length(triangulation.Points)
         
         neigh = cell2mat( vertexAttachments(triangulation,i) );
 
-        if size(neigh,2) == 6
+        total_angle = (size(neigh,2)-2)*180;
+        range = (total_angle/size(neigh,2))/2; % Half of one of the interior angles
+        
+        all_sides=[all_sides; size(neigh,2)];
+%         if size(neigh,2) == 6
             
             connected_vertices  =coords(unique(triangulation(neigh,:)),:);
             
@@ -68,8 +74,8 @@ for i=1:length(triangulation.Points)
                ref_angle = 360+ref_angle; 
             end
             
-            while ref_angle > 30
-               ref_angle = ref_angle-60;
+            while ref_angle > (range/2)
+               ref_angle = ref_angle-range;
             end
                          
             norm_backrot_vector = [];
@@ -94,8 +100,8 @@ for i=1:length(triangulation.Points)
 %                    angle = angle-60;
 %                 end
 
-                while abs(angle-ref_angle) > 30
-                   angle = angle- sign(angle-ref_angle)*60;
+                while abs(angle-ref_angle) > (range/2)
+                   angle = angle- sign(angle-ref_angle)*range;
                 end
                                 
                 back_rot_vector(j,:) = [ cosd(angle), sind(angle) ];
@@ -113,12 +119,12 @@ for i=1:length(triangulation.Points)
 %             direction = [direction ; sum(norm_backrot_vector)./6];
             degs      = [degs; atan2d(tmp(2), tmp(1)) ];
             direction = [direction ; tmp];
-            six_sided = [six_sided; center];
+            all_centers = [all_centers; center];
             
-            if abs(degs(end)) > 30
-                degs(end) = degs(end) - sign(degs(end)).*60;
+            if abs(degs(end)) > (range/2)
+                degs(end) = degs(end) - sign(degs(end)).*range;
             end
-            six_sided_deg(i) = -(degs(end));
+            all_deg(i) = -(degs(end));
             
             clear norm_backrot_vector
             clear norm_backrot_vector_offset
@@ -127,7 +133,7 @@ for i=1:length(triangulation.Points)
            
             
             
-        end
+%         end
         
 %     end
     
@@ -141,42 +147,50 @@ end
 % voronoi(coords(:,1), coords(:,2), 'k');
 % hold on;
 
+%%
 
-
-% im = imread(fullfile(pathname, [fname(1:end-11) '.tif'] )); imagesc(im); colormap gray; axis image; 
-% hold on;
+% im = imread(fullfile(pathname, [fname(1:end-11) '.tif'] )); 
+figure;
+imagesc(im); colormap gray; axis image; 
+hold on;
 
 % colorgrad = jet( max(six_sided_deg)+1 );
 
-
-
+% direction2 = [cosd(tempoutput(:,4)) sind(tempoutput(:,4))];
+% all_centers2 = tempoutput(:,1:2);
 % ori_region = zeros([size(im) 3]);
 % ori_conv = zeros([size(im) 3]);
 % 
-% for i = 1:size(six_sided,1)
-%     
-% %         if (degs(i) >=0) && (degs(i) < 10)
-% %             color = 'r';
-% %         elseif (degs(i) >= 10) && (degs(i) < 20)
-% %             color = 'g';
-% %         elseif (degs(i) >=20) && (degs(i) < 30)
-% %             color = 'b';
-% %         elseif (degs(i) >=30) && (degs(i) < 40)
-% %             color = 'y';
-% %         elseif (degs(i) >=40) && (degs(i) < 50)
-% %             color = 'm';
-% %         elseif (degs(i) >=50) && (degs(i) <= 60)
-% %             color = 'c';  
-% %         end 
-% 
-% 
-%     quiver(six_sided(i,1), six_sided(i,2), direction(i,1), direction(i,2), 5,'Color',colorgrad(degs(i).*3,:),'LineWidth',2);
-% %     plot(six_sided(i,1), six_sided(i,2),'Color',colorgrad(degs(i).*3,:),'Marker','*','MarkerSize',5);
-%     
-% end
-% axis image;
-% hold off;
+for i = 1:size(all_centers,1)
+    
+    switch(all_sides(i))
+        case 4
+            color = 'm';
+        case 5
+            color = 'c';
+        case 6
+            color = 'g';
 
+        case 7
+            color = 'y';
+        case 8
+            color = 'r';
+        case 9
+            color = 'b';
+        otherwise
+            color = 'k';
+    end
+
+
+
+    quiver(all_centers2(i,1), all_centers2(i,2), direction2(i,1), direction2(i,2), 5,'Color',color,'LineWidth',2);
+%     plot(six_sided(i,1), six_sided(i,2),'Color',colorgrad(degs(i).*3,:),'Marker','*','MarkerSize',5);
+    
+end
+axis image;
+hold off;
+return
+%%
 % colorgrad = jet(6);
 % colormap(colorgrad);
 % caxis([-30 30])
@@ -194,17 +208,17 @@ for i=1:length(C)
     if (all(C{i}~=1)  && all(vertices(:,1)<max(coords(:,1))) && all(vertices(:,2)<max(coords(:,2))) ... % Second row are the Column limits
                       && all(vertices(:,1)>min(coords(:,1))) && all(vertices(:,2)>min(coords(:,2))))
         
-        if ((six_sided_deg(i) >=-30) && (six_sided_deg(i) < -25)) || ((six_sided_deg(i) >25) && (six_sided_deg(i) <= 30))
+        if ((all_deg(i) >=-30) && (all_deg(i) < -25)) || ((all_deg(i) >25) && (all_deg(i) <= 30))
             color = 'b';
-        elseif (six_sided_deg(i) >= -25) && (six_sided_deg(i) < -15)
+        elseif (all_deg(i) >= -25) && (all_deg(i) < -15)
             color = 'c';
-        elseif (six_sided_deg(i) >=-15) && (six_sided_deg(i) < -5)
+        elseif (all_deg(i) >=-15) && (all_deg(i) < -5)
             color = 'g';
-        elseif (six_sided_deg(i) >=-5) && (six_sided_deg(i) <= 5)
+        elseif (all_deg(i) >=-5) && (all_deg(i) <= 5)
             color = 'y';
-        elseif (six_sided_deg(i) >5) && (six_sided_deg(i) <= 15)
+        elseif (all_deg(i) >5) && (all_deg(i) <= 15)
             color = 'm';
-        elseif ((six_sided_deg(i) >15) && (six_sided_deg(i) <= 25)) 
+        elseif ((all_deg(i) >15) && (all_deg(i) <= 25)) 
             color = 'r';
         else
             color = 'k';
@@ -217,7 +231,7 @@ for i=1:length(C)
         if (numedges == 6)                
             patch(V(C{i},1), V(C{i},2), ones(size(V(C{i},1))),'FaceColor',color );
         else
-            six_sided_deg(i) = -100;
+            all_deg(i) = -100;
             patch(V(C{i},1), V(C{i},2), ones(size(V(C{i},1))),'FaceColor','k' );
         end
     else
@@ -225,14 +239,14 @@ for i=1:length(C)
 %             i
 %         end
         
-        six_sided_deg(i) = -100;
+        all_deg(i) = -100;
     end
 
 end
 axis image;
 title('Pum Orientation Map')
 hold off;
-figure(11); bar(-30:1:30, histc(six_sided_deg(six_sided_deg~=-100), -30:1:30),'histc' );
+figure(11); bar(-30:1:30, histc(all_deg(all_deg~=-100), -30:1:30),'histc' );
 title('Pum Orientation Histogram'); xlabel('Orientation (degrees)'); ylabel('Number of Cells');
 
 %% Determine the orientation autocorrelation
@@ -258,9 +272,9 @@ for i=1:length(triangulation.Points)
                 break;
             end
         end
-        center_orient =six_sided_deg(centerind);
+        center_orient =all_deg(centerind);
         if center_orient ~= -100
-            conn_orient = six_sided_deg(connected_ind);
+            conn_orient = all_deg(connected_ind);
             conn_orient = conn_orient(conn_orient ~=-100);
             six_sidedautocorr = [six_sidedautocorr; mean(center_orient-conn_orient)];
         end

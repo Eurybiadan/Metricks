@@ -1,4 +1,4 @@
-function [shift, err ] = fourierFit_v2(fourierProfile, doplots)
+function [shift, err, shiftind ] = fourierFit_rough(fourierProfile, doplots)
 
 if ~exist('doplots')
     doplots = false;
@@ -25,8 +25,8 @@ end
 % Make initial guesses    
 fitParams.scale1 = max(fourierProfile)*0.9-min(fourierProfile);
 fitParams.decay1 = 1;
-fitParams.exp1 = exp(1);
 fitParams.offset1 = 0;
+fitParams.exp1 = exp(1);
 fitParams.shift = 0;
 
 
@@ -42,12 +42,12 @@ options = optimset('fmincon');
 options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off','Algorithm','interior-point');
 
 x1 = ParamsToX(fitParams);
-
+% fitParams;
 % scale decay offset shift
 vlb = [0.01 0.001  -10 1  0];
 vub = [15   15     10  10 max(fourierSampling)];
 
-x = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
+[x,ffval,exitflag] = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
 
 % Extract fit parameters
 fitParams = XToParams(x,fitParams);
@@ -133,17 +133,15 @@ if doplots
     hold off;
 end
 
+minbound = 10;
+
+maxamp = max(residuals(minbound:end))-min(residuals(minbound:end));
 
 
-SSres = sum(residuals.^2);
-SStot = sum( (fourierProfile - mean(fourierProfile)).^2 );
-n = length(fourierProfile);
-p = length(x)-1;
-
-err = 1 - ( (SSres./(n-p-1)) ./ (SStot./(n-1)) );
+err = fourierProfile(1); %max(residuals(minbound:end).^2); 
 
 shift = fourierSampling(maxnegdiff_ind+1);
-
+shiftind = maxnegdiff_ind+1;
 end
 
 % f = FitModelErrorFunction(x,timeBase,theResponse,fitParams)

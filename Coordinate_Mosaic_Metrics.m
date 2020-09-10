@@ -147,6 +147,11 @@ path(path,fullfile(basePath,'lib')); % Add our support library to the path.
 fnamelist = [fnamelist; fnamelisttxt];
 isdir = [isdir;isdirtxt];
 
+if ~iscell(isdir)
+    
+   isdir = {isdir};
+end
+
 liststr = {'microns (mm density)','degrees','arcmin'};
 [selectedunit, oked] = listdlg('PromptString','Select output units:',...
                               'SelectionMode','single',...
@@ -188,6 +193,7 @@ for i=1:size(fnamelist,1)
 
             
             if length(fnamelist{i})>42
+                
                 waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i}(1:42),'_','\_') );
             else
                 waitbar(i/size(fnamelist,1), proghand, strrep(fnamelist{i},'_','\_') );
@@ -263,7 +269,7 @@ for i=1:size(fnamelist,1)
                 clipped_coords =coordclip(coords,[diffwidth  width-diffwidth],...
                                                  [diffheight height-diffheight],'i');
 
-                clip_start_end = [diffwidth+1  width-diffwidth diffheight+1 height-diffheight];
+                clip_start_end = [diffwidth  width-diffwidth diffheight height-diffheight];
             else
 
                 width  = max(coords(:,1)) - min(coords(:,1));
@@ -280,10 +286,10 @@ for i=1:size(fnamelist,1)
                     diffheight=0;
                 end
 
-                clipped_coords =coordclip(coords,[min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth],...
-                                                 [min(coords(:,2))+diffheight max(coords(:,2))-diffheight],'i');
+                clipped_coords =coordclip(coords,[min(coords(:,1))-0.01+diffwidth  max(coords(:,1))-diffwidth+0.01],...
+                                                 [min(coords(:,2))-0.01+diffheight max(coords(:,2))-diffheight+0.01],'i');
 
-                clip_start_end = [min(coords(:,1))+diffwidth  max(coords(:,1))-diffwidth min(coords(:,2))+diffheight max(coords(:,2))-diffheight];
+                clip_start_end = [min(coords(:,1))+diffwidth-0.01  max(coords(:,1))-diffwidth+0.01 min(coords(:,2))+diffheight-0.01 max(coords(:,2))-diffheight+0.01];
             end
 
 
@@ -294,7 +300,7 @@ for i=1:size(fnamelist,1)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             if (exist('fit_fourier_spacing') == 2) && exist(fullfile(basepath, [fnamelist{i}(1:end-length('_coords.csv')) '.tif']), 'file')==2
                 
-                clipped_im = im(round(clip_start_end(3):clip_start_end(4)), round(clip_start_end(1):clip_start_end(2)) );
+                clipped_im = im(round(clip_start_end(3)+1:clip_start_end(4)), round(clip_start_end(1)+1:clip_start_end(2)) );
                 
                 [pixel_spac, ~, quality] = fit_fourier_spacing(clipped_im, min(size(clipped_im)), false,'row');
                 statistics.DFT_Row_Spacing = pixel_spac*scaleval;

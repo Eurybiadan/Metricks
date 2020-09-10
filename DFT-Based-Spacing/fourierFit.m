@@ -29,10 +29,10 @@ end
 
 if isempty(prior)
     
-    [initshift, firsterr] = fourierFit_v2(fourierProfile, doplots);
+    [initshift, firsterr, initshiftind] = fourierFit_rough(fourierProfile, doplots);
     fitParams.shift = initshift;
     % Make initial guesses
-    fitParams.scale1 = 1;
+    fitParams.scale1 = fourierProfile(1)-fourierProfile(initshiftind);
     fitParams.decay1 = (fourierProfile(1)*.36) /...
                         (fitParams.shift);
 
@@ -60,7 +60,7 @@ if doplots
 end
 
 %% Fit
-
+initParams = fitParams;
 % Set fmincon options
 options = optimset('fmincon');
 options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off','Algorithm','interior-point');
@@ -230,9 +230,10 @@ else
     heightdistinct=0;
 end
 
+
 % Revert to our original sampling.
 spacing_ind = spacing_ind*fitSampling;
-err =  heightdistinct; 
+err =  firsterr; % heightdistinct;
 
 if doplots
 
@@ -241,7 +242,7 @@ if doplots
     hold off;
     figure(1); 
     plot(fineFourierSampling(flattened_spacing), fourierProfile(floor(flattened_spacing*fitSampling)),'r*')
-    title([' Quality: ' num2str(err) ]);
+    title([' Confidence: ' num2str(err) ]);
         hold off;
     drawnow;
 %     pause;
