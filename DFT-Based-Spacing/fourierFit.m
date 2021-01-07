@@ -233,7 +233,7 @@ end
 
 % Revert to our original sampling.
 spacing_ind = spacing_ind*fitSampling;
-err =  firsterr; % heightdistinct;
+err = heightdistinct;
 
 if doplots
 

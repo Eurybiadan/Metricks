@@ -109,11 +109,11 @@ else
 
             numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
             
-%             if numzeros < (roi_size*roi_size)*0.05
+            if numzeros < (roi_size*roi_size)*0.05
                 roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
-%             else
-%                 roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
-%             end
+            else
+                roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+            end
         end
     end
 end
@@ -124,8 +124,8 @@ confidence = nan(size(roi));
 
           
 
-tic;
-parfor r=1:length(pixel_spac(:))
+% tic;
+for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
         if supersampling% We don't want this run on massive images (RAM sink)
@@ -166,7 +166,7 @@ parfor r=1:length(pixel_spac(:))
         if strcmp(row_or_cell,'cell')  && ~all(isinf(left_n_right_fourierProfile)) && ~all(isnan(left_n_right_fourierProfile))
 
             
-            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], true);
+            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], false);
 %             [pixel_spac(r), confidence(r)] = fourierFit_rough(left_n_right_fourierProfile, true)
 %             confidence(r)
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
@@ -182,7 +182,7 @@ parfor r=1:length(pixel_spac(:))
     end
     
 end
-toc;
+% toc;
 
 avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
 std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
