@@ -125,7 +125,7 @@ confidence = nan(size(roi));
           
 
 tic;
-parfor r=1:length(pixel_spac(:))
+for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
         if supersampling% We don't want this run on massive images (RAM sink)
@@ -166,7 +166,7 @@ parfor r=1:length(pixel_spac(:))
         if strcmp(row_or_cell,'cell')  && ~all(isinf(left_n_right_fourierProfile)) && ~all(isnan(left_n_right_fourierProfile))
 
             
-            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], true);
+            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], false);
 %             [pixel_spac(r), confidence(r)] = fourierFit_rough(left_n_right_fourierProfile, true)
 %             confidence(r)
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));

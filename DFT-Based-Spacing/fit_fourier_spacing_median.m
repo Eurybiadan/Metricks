@@ -98,7 +98,7 @@ if any( im_size(1:2) <= roi_size)
     % If our image is oblong and smaller than a default roi_size, then pad
     % it to be as large as the largest edge.
     padsize = ceil((max(roi_size)-im_size)/2);
-    roi = {padarray(test_image,padsize,'both')};
+    roi = {padarray(test_image(1:roi_size,1:roi_size),padsize,'both')};
     
 
 else
@@ -107,29 +107,33 @@ else
         roi_size = roi_size-1;
     end
     roi = cell(round((size(test_image)-roi_size)/roi_step));
-
+    roibounds = cell(round((size(test_image)-roi_size)/roi_step));
     for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
         for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
             numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
             
-%             if numzeros < (roi_size*roi_size)*0.05
+%              if numzeros < (roi_size*roi_size)*0.05
                 roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
-%             else
-%                 roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
-%             end
+                roibounds{round(i/roi_step)+1,round(j/roi_step)+1} = [i i+roi_size-1; j j+roi_size-1];
+%              else
+%                  roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+%              end
         end
     end
 end
 
 numind = size(roi,1)*size(roi,2);
+
+
+
 pixel_spac = nan(size(roi));
 confidence = nan(size(roi));
 
           
 
 tic;
-parfor r=1:length(pixel_spac(:))
+for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
         if supersampling% We don't want this run on massive images (RAM sink)
@@ -141,7 +145,10 @@ parfor r=1:length(pixel_spac(:))
             power_spect = imresize(log10(abs(power_spect).^2),[2048 2048]);
             rhostart = ceil(2048/min(im_size)); % Exclude the DC term from our radial average
         else
-            power_spect = fftshift(fft2( roi{r} ));
+            % Make our hanning window for each ROI.
+            hann_twodee = 1; %hanning(roi_size)*hanning(roi_size)';
+            
+            power_spect = fftshift(fft2( hann_twodee.*double(roi{r}) ));
             power_spect = log10(abs(power_spect).^2);
             rhostart=1; % Exclude the DC term from our radial average
         end
@@ -170,7 +177,7 @@ parfor r=1:length(pixel_spac(:))
         if strcmp(row_or_cell,'cell')  && ~all(isinf(left_n_right_fourierProfile)) && ~all(isnan(left_n_right_fourierProfile))
 
             
-            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], true);
+            [pixel_spac(r), ~, confidence(r)] = fourierFit(left_n_right_fourierProfile,[], false);
 %             [pixel_spac(r), confidence(r)] = fourierFit_rough(left_n_right_fourierProfile, true)
 %             confidence(r)
             pixel_spac(r) = 1/ (pixel_spac(r) / ((power_spect_radius*2)/rhosampling));
@@ -196,16 +203,23 @@ interped_conf_map = confidence;
 
 %% If we've sampled over the region, then create the heat map
 if length(roi) > 1
-    interped_spac_map=zeros(im_size);
-    interped_conf_map=zeros(im_size);
-    interped_corrected_err_map=zeros(im_size);
+
     sum_map=zeros(im_size);
     
     roi_coverage=roi_size;
     roi_overlap_rad= (roi_size/roi_step)/2; % How many indexes to the right and down one location overlaps with.
     
-    for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
-        for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
+    rowsteps = imbox(2):roi_step:(imbox(2)+imbox(4)-roi_size);
+    colsteps = imbox(1):roi_step:(imbox(1)+imbox(3)-roi_size);
+    
+    medspac = nan(length(rowsteps), length(colsteps));
+    medconf = nan(length(rowsteps), length(colsteps));
+    
+    firsti = round(imbox(2)/roi_step);
+    firstj = round(imbox(1)/roi_step);
+    
+    for i=rowsteps
+        for j=colsteps
 
             if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
     
@@ -223,8 +237,8 @@ if length(roi) > 1
                 overlap_spac = pixel_spac(overlap_rng_i, overlap_rng_j);
                 overlap_conf = confidence(overlap_rng_i, overlap_rng_j);
 
-                medspac(sub_i,sub_j) = median(overlap_spac(:));
-                medconf(sub_i,sub_j) = median(overlap_conf(:));
+                medspac(sub_i-firsti,sub_j-firstj) = median(overlap_spac(:),'omitnan');
+                medconf(sub_i-firsti,sub_j-firstj) = median(overlap_conf(:),'omitnan');
 
                 sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + 1;
             else
@@ -233,18 +247,24 @@ if length(roi) > 1
         end
     end
     
+    interped_spac_med_map = imresize(medspac,[ rowsteps(end)-rowsteps(1)+roi_size colsteps(end)-colsteps(1)+roi_size]);        
     
-    interped_spac_med_map = imresize(medspac,[ ((size(medspac,1)-1)*roi_step + 1 + roi_size) ((size(medspac,2)-1)*roi_step +1 + roi_size)] );
-    interped_spac_med_map = padarray(interped_spac_med_map, im_size-size(interped_spac_med_map ), NaN, 'post');
+    interped_conf_med_map = imresize(medconf,[ rowsteps(end)-rowsteps(1)+roi_size  colsteps(end)-colsteps(1)+roi_size]);
     
-    interped_conf_med_map = imresize(medconf,[ ((size(medspac,1)-1)*roi_step + 1 + roi_size) ((size(medspac,2)-1)*roi_step +1 + roi_size)] );
-    interped_conf_med_map = padarray(interped_conf_med_map, im_size-size(interped_conf_med_map ), NaN, 'post');
+    % If you want an image the exact same size as the one you put in.
+%     interped_spac_med_map = imresize(medspac,[ ((size(medspac,1)-1)*roi_step + 1 + roi_size) ((size(medspac,2)-1)*roi_step +1 + roi_size)] );
+%     interped_spac_med_map = padarray(interped_spac_med_map, im_size-size(interped_spac_med_map ), NaN, 'post');
+%     
+%     interped_conf_med_map = imresize(medconf,[ ((size(medspac,1)-1)*roi_step + 1 + roi_size) ((size(medspac,2)-1)*roi_step +1 + roi_size)] );
+%     interped_conf_med_map = padarray(interped_conf_med_map, im_size-size(interped_conf_med_map ), NaN, 'post');
     
 %     [X,Y]=meshgrid( 1:roi_step:(size(test_image,2)-roi_size-1), 1:roi_step:(size(test_image,1)-roi_size-1));
 %     [Xq,Yq]=meshgrid( 1:(size(test_image,2)-roi_size-1), 1:(size(test_image,1)-roi_size-1));
 %     interped_spac_map = interp2( X,Y, pixel_spac, Xq, Yq);
 
-    sum_map = sum_map( imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3) );
+    sum_map = sum_map( imbox(2):(imbox(2)+imbox(4)-1), imbox(1):(imbox(1)+imbox(3)-1) );
+    interped_spac_med_map = padarray(interped_spac_med_map, size(sum_map)-size(interped_spac_med_map), NaN, 'post');
+    interped_conf_med_map = padarray(interped_conf_med_map, size(sum_map)-size(interped_conf_med_map), NaN, 'post');
 
     if strcmp(row_or_cell,'cell')
        figure(10);clf; imagesc(interped_spac_med_map); axis image;
