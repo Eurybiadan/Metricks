@@ -116,6 +116,8 @@ if ~isempty(lut) % If we didn't directly input a scale,
 end
 
 
+method = 'mean';
+
 %% Determine the DFT distance for each image in the montage
 im_spac_map = cell(length(fNames),1);
 im_err_map = cell(length(fNames),1);
@@ -138,18 +140,34 @@ else
     myPool=gcp('nocreate');
 end
 
-parfor i=1:length(fNames)
-    fNames{i}
-    im = imread( fullfile(thispath, fNames{i}) );
-    
-    if size(im,3) >1
-        im = im(:,:,1);
+if strcmp(method, 'median')
+    parfor i=1:length(fNames)
+        fNames{i}
+        im = imread( fullfile(thispath, fNames{i}) );
+
+        if size(im,3) >1
+            im = im(:,:,1);
+        end
+
+        im = imresize(im, imsize);
+
+        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing_median(im, 128);    
+
     end
-    
-    im = imresize(im, imsize);
-    
-    [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, 128);    
-    
+else
+    parfor i=1:length(fNames)
+        fNames{i}
+        im = imread( fullfile(thispath, fNames{i}) );
+
+        if size(im,3) >1
+            im = im(:,:,1);
+        end
+
+        im = imresize(im, imsize);
+
+        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, 128);    
+
+    end
 end
 
 delete(myPool)
@@ -160,43 +178,57 @@ blendedim = zeros(imsize(1:2));
 blendederrim = zeros(imsize(1:2));
 sum_map = zeros(imsize(1:2));
 
-for i=1:length(imbox)
-   
-    thisbox = imbox{i};
-    thismap = im_spac_map{i};
-    thiserrmap = im_err_map{i};
-    thissummap = im_sum_map{i};
-    
-    thismap(isnan(thismap))=0;
-    thiserrmap(isnan(thiserrmap))=0;
-    
-%     blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-%                thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-%                                                                thisbox(1):thisbox(1)+thisbox(3)-1 ) + thismap;
-%     
-%     sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
-%              thisbox(1):thisbox(1)+thisbox(3)-1 ) = sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
-%                                                            thisbox(1):thisbox(1)+thisbox(3)-1 ) + (thissummap>0);
-% 
-%     blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-%                thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-%                                                                thisbox(1):thisbox(1)+thisbox(3)-1 ) + thiserrmap;
+if strcmp(method, 'median')
+    %% Median
+    for i=1:length(imbox)
 
-    blendedim( thisbox(2):thisbox(2)+thisbox(4),...
-               thisbox(1):thisbox(1)+thisbox(3) ) = blendedim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                               thisbox(1):thisbox(1)+thisbox(3) ) + thismap;
-    
-    sum_map( thisbox(2):thisbox(2)+thisbox(4),...
-             thisbox(1):thisbox(1)+thisbox(3) ) = sum_map( thisbox(2):thisbox(2)+thisbox(4),...
-                                                           thisbox(1):thisbox(1)+thisbox(3) ) + thissummap;
+        thisbox = imbox{i};
+        thismap = im_spac_map{i};
+        thiserrmap = im_err_map{i};
+        thissummap = im_sum_map{i};
 
-    blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
-               thisbox(1):thisbox(1)+thisbox(3) ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                               thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap;   
+        thismap(isnan(thismap))=0;
+        thiserrmap(isnan(thiserrmap))=0;
+
+        blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                   thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thismap.*thissummap;
+
+        sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                 thisbox(1):thisbox(1)+thisbox(3)-1 ) = sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                               thisbox(1):thisbox(1)+thisbox(3)-1 ) + thissummap;
+
+        blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                   thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thiserrmap.*thissummap;
+
+    end
+else
+    %% Mean
+    for i=1:length(imbox)
+
+        thisbox = imbox{i};
+        thismap = im_spac_map{i};
+        thiserrmap = im_err_map{i};
+        thissummap = im_sum_map{i};
+
+        weightedim = (thismap./thiserrmap); 
+        weightedim(isnan(weightedim)) = 0;% Make sure no NaNs sneak in...
+        
+        blendedim( thisbox(2):thisbox(2)+thisbox(4),...
+                   thisbox(1):thisbox(1)+thisbox(3) ) = blendedim( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + weightedim.*thissummap;
+
+        sum_map( thisbox(2):thisbox(2)+thisbox(4),...
+                 thisbox(1):thisbox(1)+thisbox(3) ) = sum_map( thisbox(2):thisbox(2)+thisbox(4),...
+                                                               thisbox(1):thisbox(1)+thisbox(3) ) + thissummap;
+
+        blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
+                   thisbox(1):thisbox(1)+thisbox(3) ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap.*thissummap;   
+    end
 end
-
-blendedim = blendedim./blendederrim;
-% blendedim = blendedim./blendederrim;
+blendedim = blendedim./sum_map;
 blendederrim = blendederrim./sum_map;
 
 
@@ -210,9 +242,9 @@ else
     disp('The error is normally distributed.')
 end
 
-if threshold < 0.15 % Our absolute cutoff for threshold should be 0.3- that is pretty abysmal.
-    threshold = 0.15
-end
+% if threshold < 0.15 
+%     threshold = 0.15
+% end
 
 threshold_mask = (blendederrim>threshold);
 
@@ -254,6 +286,7 @@ if length(numPixels)>=1
         roi = poly2mask([pos(1) pos(1)+pos(3) pos(1)+pos(3) pos(1) pos(1)],...
                         [pos(2) pos(2) pos(2)+pos(4) pos(2)+pos(4) pos(2)],...
                         size(density_map,1), size(density_map,2));
+        bounding_box = pos;
         close(fig)
     else
         bounding_box = regionprops(cc,'BoundingBox');

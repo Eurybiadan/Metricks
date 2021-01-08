@@ -109,11 +109,11 @@ else
 
             numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
             
-%             if numzeros < (roi_size*roi_size)*0.05
+            if numzeros < (roi_size*roi_size)*0.05
                 roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
-%             else
-%                 roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
-%             end
+            else
+                roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+            end
         end
     end
 end
@@ -137,7 +137,10 @@ for r=1:length(pixel_spac(:))
             power_spect = imresize(log10(abs(power_spect).^2),[2048 2048]);
             rhostart = ceil(2048/min(im_size)); % Exclude the DC term from our radial average
         else
-            power_spect = fftshift(fft2( roi{r} ));
+            % Make our hanning window for each ROI.
+            hann_twodee = hanning(roi_size)*hanning(roi_size)';
+            
+            power_spect = fftshift(fft2( hann_twodee.*double(roi{r}) ));
             power_spect = log10(abs(power_spect).^2);
             rhostart=1; % Exclude the DC term from our radial average
         end
