@@ -1,3 +1,4 @@
+function []=Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale)
 % Copyright (C) 2019 Robert F Cooper
 % 
 %     This program is free software: you can redistribute it and/or modify
@@ -64,13 +65,15 @@
 % same folder you ran from alongside a mat file that contains the results.
 
 
-clear;
-close all;
+% clear;
+% close all;
+if ~exist(thispath,'file')
+    [fNames, thispath ]=uigetfile(fullfile(pwd,'*.tif'),'Select all files you wish to analyze from a SINGLE subject.', 'MultiSelect', 'on');
+end
 
-[fNames,thispath ]=uigetfile(fullfile(pwd,'*.tif'),'Select all files you wish to analyze from a SINGLE subject.', 'MultiSelect', 'on');
-
-[scaling, unit, lut] = determine_scaling(pwd,fNames);
-
+if  ~exist('scaling','var') || ~exist('unit','var') || ~exist('lut','var')
+    [scaling, unit, lut] = determine_scaling(pwd,fNames);
+end
 scaling = unique(scaling);
 rel_scale = 1;
 
@@ -80,10 +83,13 @@ end
 
 if ~isempty(lut) % If we didn't directly input a scale,
     % ask if we want to scale the montage to a common (smallest) scale from given LUT.
-    pressedbutton = questdlg('Scale montage to the common (smallest) scale from the selected LUT?',...
-                             'Scale to common size?', 'No');
-
-    if strcmp(pressedbutton,'Yes')
+    pressedbutton=[]
+    if ~exist('smallestscale','var')
+        pressedbutton = questdlg('Scale montage to the common (smallest) scale from the selected LUT?',...
+                                 'Scale to common size?', 'No');
+    end
+    
+    if strcmp(pressedbutton,'Yes') || smallestscale
 
         all_scales = nan(length(fNames),1);
 
@@ -203,6 +209,9 @@ if strcmp(method, 'median')
                                                                    thisbox(1):thisbox(1)+thisbox(3)-1 ) + thiserrmap.*thissummap;
 
     end
+    
+    blendedim = blendedim./sum_map;
+    blendederrim = blendederrim./sum_map;
 else
     %% Mean
     for i=1:length(imbox)
@@ -212,12 +221,12 @@ else
         thiserrmap = im_err_map{i};
         thissummap = im_sum_map{i};
 
-        weightedim = (thismap./thiserrmap); 
-        weightedim(isnan(weightedim)) = 0;% Make sure no NaNs sneak in...
+%         weightedim = (thismap./thiserrmap); 
+%         weightedim(isnan(weightedim)) = 0;% Make sure no NaNs sneak in...
         
         blendedim( thisbox(2):thisbox(2)+thisbox(4),...
                    thisbox(1):thisbox(1)+thisbox(3) ) = blendedim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + weightedim.*thissummap;
+                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thismap;%weightedim.*thissummap;
 
         sum_map( thisbox(2):thisbox(2)+thisbox(4),...
                  thisbox(1):thisbox(1)+thisbox(3) ) = sum_map( thisbox(2):thisbox(2)+thisbox(4),...
@@ -225,11 +234,13 @@ else
 
         blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
                    thisbox(1):thisbox(1)+thisbox(3) ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap.*thissummap;   
+                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap;   
     end
+    
+    blendedim = blendedim./blendederrim;
+    blendederrim = blendederrim./sum_map;
 end
-blendedim = blendedim./sum_map;
-blendederrim = blendederrim./sum_map;
+
 
 
 %% Display the results.
