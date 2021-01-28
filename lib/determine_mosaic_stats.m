@@ -168,7 +168,7 @@ if size(coords,1) > 2
             m = m+1;
         end
 
-        inter_cell_dist = [inter_cell_dist; scale*(sum(cell_dist(1,:)) / length(cell_dist(1,:))-1)];
+        inter_cell_dist = [inter_cell_dist; scale*(sum(cell_dist(1,:)) / (length(cell_dist(1,:))-1))];
         max_cell_dist   = [max_cell_dist; scale*max(cell_dist(1,:))];    
 
     end
