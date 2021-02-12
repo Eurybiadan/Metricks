@@ -21,8 +21,10 @@ end
 
 [lutfname, lutfolder] = uigetfile(fullfile(pwd,'*.csv'),'Select scaling LUT, OR cancel if you want to input the scale directly.');
 
+
+restartf=1;
 %%
-for f=1:length(folderList)
+for f=restartf:length(folderList)
     
     fNames = read_folder_contents(folderList{f},'tif');
     
@@ -30,5 +32,5 @@ for f=1:length(folderList)
     
     
     Montage_DFT_Analysis(folderList{f}, fNames, scalinginfo, 'degrees', lut, true);
-    
+    restartf=f;
 end
