@@ -63,7 +63,7 @@ if ~exist('row_or_cell','var')
     row_or_cell = 'cell';
 end
 
-if ~exist('roi_step','var')
+if ~exist('roi_step','var') && ~isa(roi_size, 'function_handle')
     roi_step = floor(roi_size/4);
 end
 interped_spac_map=[];
@@ -102,23 +102,50 @@ if any( im_size(1:2) <= roi_size)
     
 
 else
+    if ~isa(roi_size, 'function_handle')
     % Our roi size should always be divisible by 2 (for simplicity).
     if rem(roi_size,2) ~= 0
         roi_size = roi_size-1;
     end
-    roi = cell(round((size(test_image)-roi_size)/roi_step));
-    roibounds = cell(round((size(test_image)-roi_size)/roi_step));
-    for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
-        for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
+        roi = cell(round((size(test_image)-roi_size)/roi_step));
+        roibounds = cell(round((size(test_image)-roi_size)/roi_step));
+        for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
+            for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
+                numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
+
+                 if numzeros < (roi_size*roi_size)*0.05
+                    roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
+                    roibounds{round(i/roi_step)+1,round(j/roi_step)+1} = [i i+roi_size-1; j j+roi_size-1];
+                 else
+                     roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+                 end
+            end
+        end
+    else %If roi_size is a function, that means we'll expect it to vary.
+        roi={};
+        
+        j=round(imbox(1));
+        i=round(imbox(2)); %supersampling takes on the foveal coords if the size is a function handle.
+        rsize = roi_size( sqrt(i.^2+j.^2));        
+        while i<=(imbox(2)+imbox(4))
+            while j<=(imbox(1)+imbox(3))
+                rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.
+                
+                numzeros = sum(sum(test_image(i:i+rsize-1, j:j+rsize-1)<=10));
+
+                if numzeros < (rsize*rsize)*0.05
+                    roi{round(i/4)+1,round(j/4)+1} = test_image(i:i+rsize-1, j:j+rsize-1);
+                else
+                    roi{round(i/4)+1,round(j/4)+1} =[];
+                end
+                j=round(j+(rsize/4));
+            end
             
-%              if numzeros < (roi_size*roi_size)*0.05
-                roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
-                roibounds{round(i/roi_step)+1,round(j/roi_step)+1} = [i i+roi_size-1; j j+roi_size-1];
-%              else
-%                  roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
-%              end
+            j=round(imbox(1)); % reset the column index to 0
+            i=round(i+(rsize/4)); %update our row position
+            
+            rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); % Recalc the rsize            
         end
     end
 end
@@ -206,50 +233,95 @@ if length(roi) > 1
 
     sum_map=zeros(im_size);
     
-    roi_coverage=roi_size;
-    roi_overlap_rad= (roi_size/roi_step)/2; % How many indexes to the right and down one location overlaps with.
-    
-    rowsteps = imbox(2):roi_step:(imbox(2)+imbox(4)-roi_size);
-    colsteps = imbox(1):roi_step:(imbox(1)+imbox(3)-roi_size);
-    
-    medspac = nan(length(rowsteps), length(colsteps));
-    medconf = nan(length(rowsteps), length(colsteps));
-    
-    firsti = round(imbox(2)/roi_step);
-    firstj = round(imbox(1)/roi_step);
-    
-    for i=rowsteps
-        for j=colsteps
+    if ~isa(roi_size, 'function_handle')
+        
+        roi_coverage=roi_size;
+        roi_overlap_rad= (roi_size/roi_step)/2; % How many indexes to the right and down one location overlaps with.
 
-            if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
-    
-                % To handle outliers, if this spacing is outside 2sd of
-                % surrounding data we don't include it in our final dataset.
-                sub_i = round(i/roi_step)+1;
-                sub_j = round(j/roi_step)+1;
-                
-                overlap_rng_i = sub_i-roi_overlap_rad:sub_i+roi_overlap_rad;
-                overlap_rng_i = overlap_rng_i(overlap_rng_i>0 & overlap_rng_i < size(pixel_spac,1));
-                
-                overlap_rng_j = sub_j-roi_overlap_rad:sub_j+roi_overlap_rad;
-                overlap_rng_j = overlap_rng_j(overlap_rng_j>0 & overlap_rng_j < size(pixel_spac,2));
-                
-                overlap_spac = pixel_spac(overlap_rng_i, overlap_rng_j);
-                overlap_conf = confidence(overlap_rng_i, overlap_rng_j);
+        rowsteps = imbox(2):roi_step:(imbox(2)+imbox(4)-roi_size);
+        colsteps = imbox(1):roi_step:(imbox(1)+imbox(3)-roi_size);
 
-                medspac(sub_i-firsti,sub_j-firstj) = median(overlap_spac(:),'omitnan');
-                medconf(sub_i-firsti,sub_j-firstj) = median(overlap_conf(:),'omitnan');
+        medspac = nan(length(rowsteps), length(colsteps));
+        medconf = nan(length(rowsteps), length(colsteps));
 
-                sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + 1;
-            else
+        firsti = round(imbox(2)/roi_step);
+        firstj = round(imbox(1)/roi_step);
 
+        for i=rowsteps
+            for j=colsteps
+
+                if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
+
+                    % To handle outliers, if this spacing is outside 2sd of
+                    % surrounding data we don't include it in our final dataset.
+                    sub_i = round(i/roi_step)+1;
+                    sub_j = round(j/roi_step)+1;
+
+                    overlap_rng_i = sub_i-roi_overlap_rad:sub_i+roi_overlap_rad;
+                    overlap_rng_i = overlap_rng_i(overlap_rng_i>0 & overlap_rng_i < size(pixel_spac,1));
+
+                    overlap_rng_j = sub_j-roi_overlap_rad:sub_j+roi_overlap_rad;
+                    overlap_rng_j = overlap_rng_j(overlap_rng_j>0 & overlap_rng_j < size(pixel_spac,2));
+
+                    overlap_spac = pixel_spac(overlap_rng_i, overlap_rng_j);
+                    overlap_conf = confidence(overlap_rng_i, overlap_rng_j);
+
+                    medspac(sub_i-firsti,sub_j-firstj) = median(overlap_spac(:),'omitnan');
+                    medconf(sub_i-firsti,sub_j-firstj) = median(overlap_conf(:),'omitnan');
+
+                    sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + 1;
+                else
+
+                end
             end
+        end
+    
+        interped_spac_med_map = imresize(medspac,[ rowsteps(end)-rowsteps(1)+roi_size colsteps(end)-colsteps(1)+roi_size]);        
+        interped_conf_med_map = imresize(medconf,[ rowsteps(end)-rowsteps(1)+roi_size  colsteps(end)-colsteps(1)+roi_size]);
+        
+    else %If roi_size is a function, that means we'll expect it to vary.
+        
+        
+        j=round(imbox(1));
+        i=round(imbox(2)); %supersampling takes on the foveal coords if the size is a function handle.
+        firsti = round(i/roi_step);
+        firstj = round(j/roi_step);
+        
+        rsize = roi_size( sqrt(i.^2+j.^2));        
+        while i<=(imbox(2)+imbox(4))
+            while j<=(imbox(1)+imbox(3))
+                rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.
+                if ~isnan( pixel_spac(round(i/4)+1,round(j/4)+1) )
+                
+                    % To handle outliers, if this spacing is outside 2sd of
+                    % surrounding data we don't include it in our final dataset.
+                    sub_i = round(i/4)+1;
+                    sub_j = round(j/4)+1;
+
+                    overlap_rng_i = sub_i-roi_overlap_rad:sub_i+roi_overlap_rad;
+                    overlap_rng_i = overlap_rng_i(overlap_rng_i>0 & overlap_rng_i < size(pixel_spac,1));
+
+                    overlap_rng_j = sub_j-roi_overlap_rad:sub_j+roi_overlap_rad;
+                    overlap_rng_j = overlap_rng_j(overlap_rng_j>0 & overlap_rng_j < size(pixel_spac,2));
+
+                    overlap_spac = pixel_spac(overlap_rng_i, overlap_rng_j);
+                    overlap_conf = confidence(overlap_rng_i, overlap_rng_j);
+
+                    medspac(sub_i-firsti,sub_j-firstj) = median(overlap_spac(:),'omitnan');
+                    medconf(sub_i-firsti,sub_j-firstj) = median(overlap_conf(:),'omitnan');
+
+                    sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + 1;
+                    
+                end
+                j=round(j+(rsize/4));
+            end            
+            j=round(imbox(1)); % reset the column index to 0
+            i=round(i+(rsize/4)); %update our row position
+            rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); % Recalc the rsize            
         end
     end
     
-    interped_spac_med_map = imresize(medspac,[ rowsteps(end)-rowsteps(1)+roi_size colsteps(end)-colsteps(1)+roi_size]);        
     
-    interped_conf_med_map = imresize(medconf,[ rowsteps(end)-rowsteps(1)+roi_size  colsteps(end)-colsteps(1)+roi_size]);
     
     % If you want an image the exact same size as the one you put in.
 %     interped_spac_med_map = imresize(medspac,[ ((size(medspac,1)-1)*roi_step + 1 + roi_size) ((size(medspac,2)-1)*roi_step +1 + roi_size)] );

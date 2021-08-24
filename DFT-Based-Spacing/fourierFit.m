@@ -71,6 +71,9 @@ vlb = [0.5 0.001 0.01 1 0.001  0.001 1  initshift-0.1];
 vub = [5 25   15   10 15     25       10  initshift+0.1];
 
 x = fmincon(@(x)FitModelErrorFunction(x,fourierSampling,fourierProfile,fitParams),x1,[],[],[],[],vlb,vub,[],options);
+
+
+
 % [warnmsg, msgid] = lastwarn;
 % if ~isempty(warnmsg) 
 %    disp('Wut'); 

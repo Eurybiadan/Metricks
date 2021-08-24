@@ -47,7 +47,7 @@ if size(test_image,3) >1
 end
 im_size = size(test_image);
 
-if ~exist('roi_size','var') 
+if ~exist('roi_size','var')
     roi_size = im_size;
 end
 
@@ -59,7 +59,7 @@ if ~exist('row_or_cell','var')
     row_or_cell = 'cell';
 end
 
-if ~exist('roi_step','var')
+if ~exist('roi_step','var') && ~isa(roi_size, 'function_handle')
     roi_step = floor(roi_size/4);
 end
 interped_spac_map=[];
@@ -85,7 +85,7 @@ if height_diff  < 0
     imbox(4) = imbox(4)+height_diff;
 end
 
-if any( im_size(1:2) <= roi_size)
+if ~isa(roi_size, 'function_handle') && any( im_size(1:2) <= roi_size)
     % Our roi size should always be divisible by 2 (for simplicity).
     if rem(max(roi_size),2) ~= 0
         roi_size = max(roi_size)-1;
@@ -98,21 +98,59 @@ if any( im_size(1:2) <= roi_size)
     
 
 else
-    % Our roi size should always be divisible by 2 (for simplicity).
-    if rem(roi_size,2) ~= 0
-        roi_size = roi_size-1;
-    end
-    roi = cell(round((size(test_image)-roi_size)/roi_step));
+       
+    if ~isa(roi_size, 'function_handle')
+        roi = cell(round((size(test_image)-roi_size)/roi_step));
+        
+        % Our roi size should always be divisible by 2 (for simplicity).
+        if rem(roi_size,2) ~= 0
+            roi_size = roi_size-1;
+        end
+        
+        for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
+            for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-    for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
-        for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
+                numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
 
-            numzeros = sum(sum(test_image(i:i+roi_size-1, j:j+roi_size-1)<=10));
+                if numzeros < (roi_size*roi_size)*0.05
+                    roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
+                else
+                    roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+                end
+            end
+        end
+    else %If roi_size is a function, that means we'll expect it to vary.
+        roi={};
+        j=round(imbox(1));
+        i=round(imbox(2)); %supersampling takes on the foveal coords if the size is a function handle.
+        rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.                
+        if rsize > imbox(3) || rsize > imbox(4)           
+            rsize = min(imbox(3:4))-1;
+        end
+        
+        while (i+rsize-1)<=(imbox(2)+imbox(4))
+            while (j+rsize-1)<=(imbox(1)+imbox(3))
+                
+                numzeros = sum(sum(test_image(i:i+rsize-1, j:j+rsize-1)<=10));
+
+                if numzeros < (rsize*rsize)*0.05
+                    roi{round(i/4)+1,round(j/4)+1} = test_image(i:i+rsize-1, j:j+rsize-1);
+                else
+                    roi{round(i/4)+1,round(j/4)+1} =[];
+                end
+                
+                j=round(j+(rsize/4));
+                rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.
+                if rsize > imbox(3) || rsize > imbox(4) %If our size is larger than one of the image sides, crop it.
+                    rsize = min(imbox(3:4))-1;
+                end
+            end
             
-            if numzeros < (roi_size*roi_size)*0.05
-                roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+roi_size-1, j:j+roi_size-1);
-            else
-                roi{round(i/roi_step)+1,round(j/roi_step)+1} =[];
+            j=round(imbox(1)); % reset the column index to 0
+            i=round(i+(rsize/4)); %update our row position
+            rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); % Recalc the rsize
+            if rsize > imbox(3) || rsize > imbox(4) %If our size is larger than one of the image sides, crop it.
+                rsize = min(imbox(3:4))-1;
             end
         end
     end
@@ -124,11 +162,11 @@ confidence = nan(size(roi));
 
           
 
-tic;
+% tic;
 for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
-        if supersampling% We don't want this run on massive images (RAM sink)
+        if supersampling == true% We don't want this run on massive images (RAM sink)
 
             padsize = roi_size(1)*6; % For reasoning, cite this: https://arxiv.org/pdf/1401.2636.pdf
             padsize = (padsize-roi_size(1))/2 + 1;
@@ -185,7 +223,7 @@ for r=1:length(pixel_spac(:))
     end
     
 end
-toc;
+% toc;
 
 avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
 std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
@@ -200,31 +238,70 @@ if length(roi) > 1
     interped_corrected_err_map=zeros(im_size);
     sum_map=zeros(im_size);
     
-    roi_coverage=roi_size; %round(roi_size/4);
-    
-    for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
-        for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
+    if ~isa(roi_size, 'function_handle')
+        
+        roi_coverage=roi_size; %round(roi_size/4);
 
-            if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
-                
-                thiserr = confidence(round(i/roi_step)+1,round(j/roi_step)+1)^2;
-%                 if thiserr > .44
-                    interped_conf_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = interped_conf_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + thiserr;                
-                    thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
-                
+        for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
+            for j=imbox(1):roi_step:imbox(1)+imbox(3)-roi_size
 
-                    interped_spac_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = interped_spac_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + thiserr*thisspac;
+                if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
 
-                    sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + 1;
+                    thiserr = confidence(round(i/roi_step)+1,round(j/roi_step)+1)^2;
+    %                 if thiserr > .44
+                        interped_conf_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = interped_conf_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + thiserr;                
+                        thisspac = pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1);
 
-%                 end
-            else
 
+                        interped_spac_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = interped_spac_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + thiserr*thisspac;
+
+                        sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) = sum_map(i:i+roi_coverage-1, j:j+roi_coverage-1) + 1;
+
+    %                 end
+                else
+
+                end
             end
         end
+
+    else %If roi_size is a function, that means we'll expect it to vary.
+        roi={};
+        j=round(imbox(1));
+        i=round(imbox(2)); %supersampling takes on the foveal coords if the size is a function handle.
+        rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.                
+        if rsize > imbox(3) || rsize > imbox(4)           
+            rsize = min(imbox(3:4))-1;
+        end
+        
+        while (i+rsize-1)<=(imbox(2)+imbox(4))
+            while (j+rsize-1)<=(imbox(1)+imbox(3))
+                
+                if ~isnan( pixel_spac(round(i/4)+1,round(j/4)+1) )
+
+                    thiserr = confidence(round(i/4)+1,round(j/4)+1)^2;
+
+                        interped_conf_map(i:i+rsize-1, j:j+rsize-1) = interped_conf_map(i:i+rsize-1, j:j+rsize-1) + thiserr;                
+                        thisspac = pixel_spac(round(i/4)+1,round(j/4)+1);
+
+
+                        interped_spac_map(i:i+rsize-1, j:j+rsize-1) = interped_spac_map(i:i+rsize-1, j:j+rsize-1) + thiserr*thisspac;
+
+                        sum_map(i:i+rsize-1, j:j+rsize-1) = sum_map(i:i+rsize-1, j:j+rsize-1) + 1;
+
+                end
+                
+                j=round(j+(rsize/4));
+                rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.
+                if rsize > imbox(3) || rsize > imbox(4) %If our size is larger than one of the image sides, crop it.
+                    rsize = min(imbox(3:4))-1;
+                end
+            end
+            
+            j=round(imbox(1)); % reset the column index to "0"
+            i=round(i+(rsize/4)); %update our row position
+            rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); % Recalc the rsize            
+        end
     end
-    
-    
     
 %     [X,Y]=meshgrid( 1:roi_step:(size(test_image,2)-roi_size-1), 1:roi_step:(size(test_image,1)-roi_size-1));
 %     [Xq,Yq]=meshgrid( 1:(size(test_image,2)-roi_size-1), 1:(size(test_image,1)-roi_size-1));
