@@ -147,10 +147,6 @@ path(path,fullfile(basePath,'lib')); % Add our support library to the path.
 fnamelist = [fnamelist; fnamelisttxt];
 isdir = [isdir;isdirtxt];
 
-if ~iscell(isdir)
-    
-   isdir = {isdir};
-end
 
 liststr = {'microns (mm density)','degrees','arcmin'};
 [selectedunit, oked] = listdlg('PromptString','Select output units:',...
@@ -183,13 +179,13 @@ end
 
 
 first = true;
-
+%% Process the data.
 proghand = waitbar(0,'Processing...');
 
 for i=1:size(fnamelist,1)
 
     try
-        if ~isdir{i}
+        if ~isdir(i)
 
             
             if length(fnamelist{i})>42
@@ -228,7 +224,8 @@ for i=1:size(fnamelist,1)
                 scaleval = scaleinput;
             end
 
-
+            
+            
             %Read in coordinates - assumes x,y
             coords=dlmread(fullfile(basepath,fnamelist{i}));
             

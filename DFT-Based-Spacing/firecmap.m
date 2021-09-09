@@ -1,4 +1,4 @@
-function [cmap, amap] = firecmap(pureredend, yellowmid, fadestart, range)
+function [cmap, amap] = firecmap(pureredend, yellowmid, fadestart, minrng, maxrng, range)
 
 % Modal Spacing paper: 
 % redcutoff: pureredend = 0.1882; % 1st percenile
@@ -6,6 +6,10 @@ function [cmap, amap] = firecmap(pureredend, yellowmid, fadestart, range)
 % fadestart = 0.3451; % 5th percenile
 
 valuerange = range;
+pureredend = (pureredend-minrng)/(maxrng-minrng);
+yellowmid = (yellowmid-minrng)/(maxrng-minrng);
+fadestart = (fadestart-minrng)/(maxrng-minrng);
+
 redidx = floor(valuerange*pureredend)+1; % To prevent a 0 index.
 yellowidx = floor(valuerange*yellowmid)+1;
 

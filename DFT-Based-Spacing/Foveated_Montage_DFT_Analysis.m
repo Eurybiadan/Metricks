@@ -1,4 +1,4 @@
-function [blendedim, fovea_coords]=Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, roisize)
+function [fovea_coords]=Foveated_Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, corase_fov_coords)
 % Copyright (C) 2019 Robert F Cooper
 % 
 %     This program is free software: you can redistribute it and/or modify
@@ -77,9 +77,6 @@ end
 scaling = unique(scaling);
 rel_scale = 1;
 
-if ~exist('roisize','var')
-   roisize=128; 
-end
 
 if ~exist('smallestscale','var')
    smallestscale=false; 
@@ -132,6 +129,14 @@ end
 
 method = 'mean';
 
+% First run the normal analysis with a larger ROI size (should speed up
+% initial run)
+if ~exist('corase_fov_coords','var') || isempty(corase_fov_coords)
+    [~, corase_fov_coords]=Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, 256);
+end
+roi_size_fcn = create_roi_size_fcn(128,384,1/scaling,10/scaling); % 1 to 10 degrees.
+
+
 %% Determine the DFT distance for each image in the montage
 im_spac_map = cell(length(fNames),1);
 im_err_map = cell(length(fNames),1);
@@ -165,7 +170,7 @@ if strcmp(method, 'median')
 
         im = imresize(im, imsize);
 
-        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing_median(im, roisize);    
+        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing_median(im, roi_size_fcn,corase_fov_coords);    
 
     end
 else
@@ -179,7 +184,7 @@ else
 
         im = imresize(im, imsize);
 
-        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, roisize);    
+        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, roi_size_fcn,corase_fov_coords);    
 
     end
 end
@@ -193,7 +198,7 @@ blendederrim = zeros(imsize(1:2));
 sum_map = zeros(imsize(1:2));
 
 if strcmp(method, 'median')
-    %% Median
+    % Median
     for i=1:length(imbox)
 
         thisbox = imbox{i};
@@ -221,7 +226,7 @@ if strcmp(method, 'median')
     blendedim = blendedim./sum_map;
     blendederrim = blendederrim./sum_map;
 else
-    %% Mean
+    % Mean
     for i=1:length(imbox)
 
         thisbox = imbox{i};
@@ -281,7 +286,7 @@ end
     
 
 threshdensitymap=density_map;
-rois =threshdensitymap>quantile(threshdensitymap(threshdensitymap>0),.95);
+rois =threshdensitymap>quantile(threshdensitymap(threshdensitymap>0),.85);
 
 % Find our biggest cc- this will likely be the fovea.
 cc = bwconncomp(rois);
@@ -324,7 +329,7 @@ smoothmap = smoothmap(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_
 smoothmap(isnan(smoothmap)) = 0;
 smoothmap = imgaussfilt(smoothmap,8);
 
-smoothmaptheshold = quantile(smoothmap(smoothmap>0),.95);
+smoothmaptheshold = quantile(smoothmap(smoothmap>0),.85);
 
 figure(10); clf; hold on;
 imagesc(smoothmap); axis image;
@@ -362,6 +367,8 @@ plot( rotated_ellipse(1,:),rotated_ellipse(2,:),'r' );
 plot(fovea_coords(:,1), fovea_coords(:,2),'*');
 
 fovea_coords = fovea_coords+bounding_box(1:2);
+
+
 
 
 %% Make a foveal mask using active contour
@@ -402,56 +409,55 @@ foveamask(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bound
 % figure;  imagesc(foveamask)
 
 
-if nargout == 0
-    %% Display and output
-    clear rois smoothmap
-    result_path = fullfile(thispath,'Results');
-    mkdir(result_path)
+
+%% Display and output
+clear rois smoothmap
+result_path = fullfile(thispath,'Results_foveated');
+mkdir(result_path)
 
 
-    %%
-    save( fullfile(result_path,[prefix 'Fouriest_Result.mat']), '-v7.3' );
+%%
+save( fullfile(result_path,[prefix 'Fouriest_Result.mat']), '-v7.3' );
 
-    %% Show figures
+%% Show figures
 
-    % figure(1); imagesc(sum_map); axis image; colorbar;
+% figure(1); imagesc(sum_map); axis image; colorbar;
 
-    blendedim = blendedim.*2/sqrt(3); % To convert to ICD spacing.
-    scaled_spacing = (blendedim.*scaling)-min(blendedim(:).*scaling);
-    scaled_spacing = 255.*(scaled_spacing./ max(scaled_spacing(:)) );
+blendedim = blendedim.*2/sqrt(3); % To convert to ICD spacing.
+scaled_spacing = (blendedim.*scaling)-min(blendedim(:).*scaling);
+scaled_spacing = 255.*(scaled_spacing./ max(scaled_spacing(:)) );
 
-    figure(2); imagesc( (blendedim.*scaling) ); axis image; colorbar;
-    imwrite( uint8(scaled_spacing.*threshold_mask), parula(256), fullfile(result_path, [prefix 'thresh_montage_spacing_' num2str(scaling,'%5.2f') '.tif']))
-    clear scaled_spacing;
+figure(2); imagesc( (blendedim.*scaling) ); axis image; colorbar;
+imwrite( uint8(scaled_spacing.*threshold_mask), parula(256), fullfile(result_path, [prefix 'thresh_montage_spacing_' num2str(scaling,'%5.2f') '.tif']))
+clear scaled_spacing;
 
-    scaled_error = 255*blendederrim;
-    [cmap, amap] = firecmap(quantile(blendederrim(blendederrim~=0), 0.01),...
-                            quantile(blendederrim(blendederrim~=0), 0.25),...
-                            quantile(blendederrim(blendederrim~=0), 0.05), ...
-                            min(blendederrim(blendederrim~=0)), ...
-                            max(blendederrim(blendederrim~=0)), 256);
+scaled_error = 255*blendederrim;
+[cmap, amap] = firecmap(quantile(blendederrim(blendederrim~=0), 0.01),...
+                        quantile(blendederrim(blendederrim~=0), 0.25),...
+                        quantile(blendederrim(blendederrim~=0), 0.05), ...
+                        min(blendederrim(blendederrim~=0)), ...
+                        max(blendederrim(blendederrim~=0)), 256);
 
-    figure(3); imagesc(blendederrim); colormap(cmap); axis image; colorbar;
-    imwrite( uint8(scaled_error), cmap,fullfile(result_path, [prefix 'thresh_montage_err_' num2str(scaling,'%5.2f') '.png']), 'Transparency',amap)
-    clear scaled_error;
+figure(3); imagesc(blendederrim); colormap(cmap); axis image; colorbar;
+imwrite( uint8(scaled_error), cmap,fullfile(result_path, [prefix 'thresh_montage_err_' num2str(scaling,'%5.2f') '.png']), 'Transparency',amap)
+clear scaled_error;
 
-    imwrite( uint8(imclose(threshold_mask,ones(11)).*255), fullfile(result_path, [prefix 'thresh_montage_mask_' num2str(scaling,'%5.2f') '.tif']));
+imwrite( uint8(imclose(threshold_mask,ones(11)).*255), fullfile(result_path, [prefix 'thresh_montage_mask_' num2str(scaling,'%5.2f') '.tif']));
 
-    masked_density = density_map.*imclose(threshold_mask,ones(11)).*foveamask;
+masked_density = density_map.*imclose(threshold_mask,ones(11)).*foveamask;
 
-    lower01 = quantile(masked_density(~isnan(masked_density)),0.01);
-    upper99 = quantile(masked_density(~isnan(masked_density)).*roi(~isnan(masked_density)),0.99);
-    clear masked_density
+lower01 = quantile(masked_density(~isnan(masked_density)),0.01);
+upper99 = quantile(masked_density(~isnan(masked_density)).*roi(~isnan(masked_density)),0.99);
+clear masked_density
 
-    scaled_density = density_map-lower01;
-    scaled_density = 255.*(scaled_density./ upper99 );
-    scaled_density(scaled_density>255) = 255;
+scaled_density = density_map-lower01;
+scaled_density = 255.*(scaled_density./ upper99 );
+scaled_density(scaled_density>255) = 255;
 
-    figure(5); imagesc( density_map.*imclose(threshold_mask,ones(11)).*foveamask ); axis image; colorbar;
-    caxis([lower01 upper99]);
-    imwrite( uint8(scaled_density.*imclose(threshold_mask,ones(11)).*foveamask),parula(256),fullfile(result_path, [prefix 'thresh_montage_density_' num2str(scaling,'%5.2f') '.tif']))
-    clear scaled_density;
-end
+figure(5); imagesc( density_map.*imclose(threshold_mask,ones(11)).*foveamask ); axis image; colorbar;
+caxis([lower01 upper99]);
+imwrite( uint8(scaled_density.*imclose(threshold_mask,ones(11)).*foveamask),parula(256),fullfile(result_path, [prefix 'thresh_montage_density_' num2str(scaling,'%5.2f') '.tif']))
+clear scaled_density;
 
 %% Temp horizontal plot
 % band_radius = 256;
