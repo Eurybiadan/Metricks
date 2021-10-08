@@ -87,8 +87,8 @@ for f=1:length(fNames)
     end    
 
     % TO DENSITY - TEMPORARY
-%     blendedim = sqrt(3)./ (2*(blendedim.*scaling).^2);
-%     blendedim = (1000^2).*blendedim;
+%      blendedim = sqrt(3)./ (2*(blendedim.*scaling).^2);
+%      blendedim = (1000^2).*blendedim;
     
     avg_spacing( rowrange, colrange) = sum(cat(3, avg_spacing( rowrange, colrange), blendedim),3,'omitnan');
     avg_error( rowrange, colrange) = sum(cat(3, avg_error( rowrange, colrange), blendederrim),3,'omitnan');
@@ -98,7 +98,7 @@ end
 
 % avg_spacing = avg_spacing./combined_sum_map; %TO DENSITY-TEMPORARY
 avg_spacing = scaling.*avg_spacing./combined_sum_map;
-avg_spacing= avg_spacing.*2/sqrt(3); % To ICD
+% avg_spacing= avg_spacing.*2/sqrt(3); % To ICD <-- only needed if row, not cell, spacing.
 avg_error = avg_error./combined_sum_map;
 
 % Display the results.
@@ -114,8 +114,9 @@ end
 threshold_mask = (avg_error>threshold); % & (combined_sum_map>10);
 
 %% To find foveal mask
-avg_density = avg_spacing.*sqrt(3)/2;
-avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2);
+avg_density = avg_spacing; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
+% avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2); %<-- for cells/mm
+avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
 
 threshspacingmap=avg_density(minglobalbounds(2)-768:minglobalbounds(2)+768, minglobalbounds(1)-768:minglobalbounds(1)+768);
 
@@ -209,6 +210,8 @@ if size(foveapts,1) > 3
 %     threshold_mask = logical(threshold_mask.*~poly2mask(splinefitx,splinefity,size(avg_spacing,1),size(avg_spacing,2)));
 %     clear maxcoordsth maxcoords maxcoordsr splinefitr maxes threshspacingmap s
 end
+% Ensure that we only see the averages of data with more than X points going into it.
+threshold_mask = logical(threshold_mask.*(combined_sum_map>5)); 
 
 %% Plot our masked data.
 
@@ -227,10 +230,11 @@ clear rescaled_avg_spacing;
 
 %% Output error image
 errquartiles = quantile(avg_error(avg_error~=0),[0.01 0.05 0.25]);
-[firemap, amap] = firecmap(errquartiles(1), errquartiles(3), errquartiles(2), 256);
+[firemap, amap] = firecmap(errquartiles(1), errquartiles(3), errquartiles(2),...
+                           min(avg_error(avg_error~=0)), max(avg_error(avg_error~=0)), 256);
 
-rescaled_avg_err = avg_error;
-rescaled_avg_err = 255*avg_error; 
+rescaled_avg_err = avg_error.*threshold_mask;
+rescaled_avg_err = 255*rescaled_avg_err; 
 rescaled_avg_err(rescaled_avg_err>255) = 255;
 imwrite(rescaled_avg_err, firemap, [num2str(length(fNames)) 'subjects_combined_error.png'], 'Transparency',amap)
 
@@ -238,8 +242,9 @@ figure(2); imagesc(rescaled_avg_err); colormap(firemap); axis image; colorbar; t
 clear rescaled_avg_err;
 
 %% Output density image
-avg_density = avg_spacing.*sqrt(3)/2;
-avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2);
+avg_density = avg_spacing; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
+% avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2); %<-- for cells/mm
+avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
 
 rescaled_avg_density = (avg_density.*threshold_mask)-quantile(avg_density(threshold_mask(:)),0.01);
 rescaled_avg_density(rescaled_avg_density<0) = 0;
@@ -256,8 +261,10 @@ clear avg_density rescaled_avg_density;
 imwrite(uint8(255*(combined_sum_map./max(combined_sum_map(:)))), parula(256), [num2str(length(fNames)) 'subjects_sum_map.tif']);
 
 %% Output directional plots
-avg_density = avg_spacing.*sqrt(3)/2;
-avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2);
+avg_density = avg_spacing; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
+% avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2); %<-- for cells/mm
+avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
+
 maskedspac = avg_density.*threshold_mask;
 micron_position = (0:(1600/0.41))*0.41;
 strip_length = length(micron_position)-1;
@@ -276,15 +283,19 @@ temp_strip = mean(fliplr(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+18
 plot(micron_position,temp_strip);
 legend('Superior','Inferior','Nasal','Temporal')
 
+saveas(gcf,[num2str(length(fNames)) 'subjects_directionalavg.svg']);
+
 figure(11);
 plot(micron_position, 100*(mean([sup_strip inf_strip],2)'./mean([nasal_strip; temp_strip],1)-1) );
 axis([150 1600 0 50])
+
+
 
 clear maskedspac temp_strip nasal_strip inf_strip sup_strip
 return;
 
 %% Determine average/stddev of all data.
-spacing_std_dev = nan(global_dimension);
+spacing_std_var = nan(global_dimension);
 
 
 % For finding outliers:
@@ -305,14 +316,15 @@ for f=1:length(fNames)
     
     % TO DENSITY - TEMPORARY
     blendedim = sqrt(3)./ (2*(blendedim*scaling).^2);
-    blendedim = (1000^2).*blendedim;
+%     blendedim = (1000^2).*blendedim;
     
+    blendedim = blendedim.*threshold_mask( rowrange, colrange);
 
     thisdiff = sum( cat(3, blendedim, -avg_density( rowrange, colrange)) ,3).^2; % This line is good. Nans need to be carried through.
     
 %     thisdiff =  sum( cat(3, (scaling.*blendedim).*(2/sqrt(3)), -avg_spacing( rowrange, colrange)) ,3).^2;
 
-    spacing_std_dev( rowrange, colrange) = sum( cat(3,spacing_std_dev( rowrange, colrange), thisdiff), 3,'omitnan'); 
+    spacing_std_var( rowrange, colrange) = sum( cat(3,spacing_std_var( rowrange, colrange), thisdiff), 3,'omitnan'); 
      clear thisdiff;
 
 
@@ -320,14 +332,15 @@ for f=1:length(fNames)
 end
 
 % plot(micron_position,temp_strip,'k', 'LineWidth',3);
-
+%%
+ spacing_std_dev = spacing_std_var;
  spacing_std_dev = spacing_std_dev./(combined_sum_map-1);
  spacing_std_dev(isinf(spacing_std_dev)) =0;
  spacing_std_dev = sqrt(spacing_std_dev);
  maskedspac = spacing_std_dev.*threshold_mask;
 
 figure(3); imagesc(spacing_std_dev.*threshold_mask); title('Combined Spacing Std dev');
-
+saveas(gcf,[num2str(length(fNames)) 'subjects_combined_stddev.svg']);
 
 figure(20); clf; hold on;
 % Superior
@@ -341,7 +354,7 @@ plot(micron_position/291, nasal_strip);
 temp_strip = mean(fliplr(maskedspac(minglobalbounds(2)-180:minglobalbounds(2)+180,minglobalbounds(1)-strip_length:minglobalbounds(1))), 1,  'omitnan');
 plot(micron_position/291,temp_strip);
 legend('Superior','Inferior','Nasal','Temporal')
-
+saveas(gcf,[num2str(length(fNames)) 'subjects_directionalstddev.svg']);
 clear maskedspac temp_strip nasal_strip
 return;
 
