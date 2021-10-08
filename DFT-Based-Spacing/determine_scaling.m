@@ -1,4 +1,4 @@
-function [scaling_information, selectedunit, lut] = determine_scaling(basepath, fNames)
+function [scaling_information, selectedunit, lut] = determine_scaling(basepath, fNames, lut_path, desired_unit)
 % [scaling_information, selectedunit] = determine_scaling(basepath, fNames)
 %   
 % This function is responsible for determining the scale information for a
@@ -31,20 +31,31 @@ function [scaling_information, selectedunit, lut] = determine_scaling(basepath, 
         basepath=pwd;
     end
 
-    liststr = {'microns (mm density)','degrees','arcmin'};
-    [selectedunit, oked] = listdlg('PromptString','Select output units:',...
-                                  'SelectionMode','single',...
-                                  'ListString',liststr);
-    if oked == 0
-        error('Cancelled by user.');
+    if ~exist('desired_unit','var')
+        liststr = {'microns (mm density)','degrees','arcmin'};
+        [selectedunit, oked] = listdlg('PromptString','Select output units:',...
+                                      'SelectionMode','single',...
+                                      'ListString',liststr);
+        if oked == 0
+            error('Cancelled by user.');
+        end
+
+        selectedunit = liststr{selectedunit};
+    else
+        selectedunit = desired_unit;
     end
 
-    selectedunit = liststr{selectedunit};                          
-
-    [scalingfname, scalingpath] = uigetfile(fullfile(basepath,'*.csv'),'Select scaling LUT, OR cancel if you want to input the scale directly.');
-
+    
+    if ~exist('lut_path','var')
+        [scaling_path, scalingdir] = uigetfile(fullfile(basepath,'*.csv'),'Select scaling LUT, OR cancel if you want to input the scale directly.');
+        scaling_path = fullfile(scalingdir,scaling_path);
+    else
+        scaling_path = lut_path;
+        
+    end
+    
     scaling_information = NaN;
-    if scalingfname == 0        
+    if scaling_path == 0        
 
         while isnan(scaling_information)                
 
@@ -58,7 +69,7 @@ function [scaling_information, selectedunit, lut] = determine_scaling(basepath, 
         end
     else
         
-        [~, lutData] = load_scale_file(fullfile(scalingpath,scalingfname));
+        [~, lutData] = load_scale_file(scaling_path);
 
         lut= lutData;
         if ~exist('fNames','var')
@@ -94,8 +105,6 @@ function [scaling_information, selectedunit, lut] = determine_scaling(basepath, 
             end
         end
     end
-    
-    scaling_information=scaling_information';
 end
 
 function [ scaling_row, scaling_col ] = load_scale_file( fileloc )

@@ -176,7 +176,7 @@ for r=1:length(pixel_spac(:))
             rhostart = ceil(2048/min(im_size)); % Exclude the DC term from our radial average
         else
             % Make our hanning window for each ROI.
-            hann_twodee = 1; %hanning(roi_size)*hanning(roi_size)';
+            hann_twodee = hanning(roi_size)*hanning(roi_size)';
             
             power_spect = fftshift(fft2( hann_twodee.*double(roi{r}) ));
             power_spect = log10(abs(power_spect).^2);

@@ -16,19 +16,22 @@
 #
 
 import sys
-from PySide6.QtWidgets import QApplication, QWizard, QWizardPage, QVBoxLayout, QGridLayout, QPushButton, QLabel, QLineEdit
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QWizard, QWizardPage, QVBoxLayout, QGridLayout, QPushButton, QLabel, \
+                              QLineEdit, QFileDialog
+from PySide6.QtCore import Qt, Signal, Slot, Property
 
 class PygmyFeeder(QWizard):
     def __init__(self, parent=None):
-        super(PygmyFeeder, self).__init__(parent)
+        QWizard.__init__(self,parent)
         self.setWindowTitle("Welcome to OCVL's Metricks Master (Pygmy Python editon)")
         self.addPage(WelcomePage(self))
 
 
 class WelcomePage(QWizardPage):
+    butt_signal = Signal(str)  # Make a signal, pass it
+
     def __init__(self, parent=None):
-        super(WelcomePage, self).__init__(parent)
+        QWizardPage.__init__(self, parent)
         self.setTitle("Select the data source(s) to analyze:")
 
         self.label = QLabel("<b>Images are not required.</b><br> However, if they"+
@@ -42,12 +45,16 @@ class WelcomePage(QWizardPage):
 
         self.coord_label = QLineEdit()
         self.coord_label.setReadOnly(True)
+        self.coord_label.text()
         self.coord_butt = QPushButton("Select...")
+
+        self._coord_path = ""
 
         self.image_label = QLineEdit()
         self.image_label.setReadOnly(True)
         #self.image_label.setMaximumWidth()
         self.image_butt = QPushButton("Select...")
+        self.image_path = ""
 
         self.file_dir_form.addWidget(self.coord_label, 0, 0)
         self.file_dir_form.addWidget(self.coord_butt, 0, 1)
@@ -62,6 +69,35 @@ class WelcomePage(QWizardPage):
         self.file_dir_form.setSpacing(4)
 
         self.setLayout(self.v_layout)
+
+        self.butt_signal
+        self.coord_butt.clicked.connect(self.select_coord_path)
+        self.image_butt.clicked.connect(self.select_image_path)
+
+
+
+    def readCoordPath(self):
+        return self._coord_path
+
+    def setCoordPath(self, val):
+        self._coord_path = val
+
+    coord_path = Property(str, readCoordPath, setCoordPath, notify=butt_signal)
+
+    @Slot()
+    def select_coord_path(self):
+        self._coord_path = QFileDialog.getExistingDirectory(parent=self,
+                                                           caption="Select the folder containing the coordinates of interest.",
+                                                           options=QFileDialog.ShowDirsOnly)
+
+
+    @Slot()
+    def select_image_path(self):
+
+        self.image_path = QFileDialog.getExistingDirectory(parent=self,
+                                                           caption="Select the folder containing the images of interest.",
+                                                           options=QFileDialog.ShowDirsOnly)
+
 
 
 if __name__ == '__main__':
