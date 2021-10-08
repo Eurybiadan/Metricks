@@ -18,8 +18,8 @@ thisfolder = uigetdir(thisfolder, 'Select the folders containing the montages yo
 [lutfname, lutfolder] = uigetfile(fullfile(pwd,'*.csv'),'Select scaling LUT, OR cancel if you want to input the scale directly.');
 
 %%
-restartf=21;
-endf=21;
+restartf=1;
+endf=1;
 % endf=length(folderList);
 %%
 for f=restartf:endf
