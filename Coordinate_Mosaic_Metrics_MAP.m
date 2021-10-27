@@ -134,7 +134,7 @@ else
     [~, lutData] = load_scaling_file(fullfile(scalingpath,scalingfname));
 end
 
-
+%%
 first = true;
 
 proghand = waitbar(0,'Processing...');
@@ -142,7 +142,7 @@ proghand = waitbar(0,'Processing...');
 for i=1:size(fnamelist,1)
 
     try
-        if ~isdir{i}
+        if ~isdir(i)
 
             
             if length(fnamelist{i})>42
@@ -216,7 +216,7 @@ for i=1:size(fnamelist,1)
                 
             else
                 
-                upper_bound = 100;
+                upper_bound = 150;
                 
                 if upper_bound > size(coords,1)
                     upper_bound = size(coords,1);
@@ -227,9 +227,10 @@ for i=1:size(fnamelist,1)
 
                 parfor c=1:size(coords,1)
 
-                    thiswindowsize=0;
+                    thiswindowsize=1;
                     clipped_coords=[];
-                    while length(clipped_coords) < upper_bound
+                    numbound=0;
+                    while numbound < upper_bound
                         thiswindowsize = thiswindowsize+1;
                         rowborders = ([coords(c,2)-(thiswindowsize/2) coords(c,2)+(thiswindowsize/2)]);
                         colborders = ([coords(c,1)-(thiswindowsize/2) coords(c,1)+(thiswindowsize/2)]);
@@ -241,8 +242,33 @@ for i=1:size(fnamelist,1)
 
                         clipped_coords =coordclip(coords,colborders,...
                                                          rowborders,'i');
-                    end
+                        if size(clipped_coords,1) > 5
+                            % Next, create voronoi diagrams from the cells we've clipped.                             
+                            [V,C] = voronoin(clipped_coords,{'QJ'}); % Returns the vertices of the Voronoi edges in VX and VY so that plot(VX,VY,'-',X,Y,'.')
 
+%                             figure(10);
+%                             clf;hold on;
+
+                            bound = zeros(length(C),1);
+                            for vc=1:length(C)
+
+                                vertices=V(C{vc},:);
+
+                                if (all(C{vc}~=1)  && all(vertices(:,1)<colborders(2)) && all(vertices(:,2)<rowborders(2)) ... % [xmin xmax ymin ymax] 
+                                                 && all(vertices(:,1)>colborders(1)) && all(vertices(:,2)>rowborders(1))) 
+                                    bound(vc) = 1;
+                                    
+%                                     patch(V(C{vc},1),V(C{vc},2),ones(size(V(C{vc},1))),'FaceColor','b');                                   
+%                                 else                                    
+%                                     patch(V(C{vc},1),V(C{vc},2),ones(size(V(C{vc},1))),'FaceColor','r');                                    
+                                end
+                            end
+
+                            numbound = sum(bound);
+                        end
+
+                    end
+%                     axis([colborders rowborders])
                     pixelwindowsize(c) = thiswindowsize;
                 end
             end
@@ -323,12 +349,13 @@ for i=1:size(fnamelist,1)
             [minrow,mincol]=ind2sub(size(interped_map),minind);
             [maxrow,maxcol]=ind2sub(size(interped_map),maxind);
             
-            max_x_vals = maxcol
-            max_y_vals = maxrow
+            max_x_vals = maxcol;
+            max_y_vals = maxrow;
             
             title(['Minimum value: ' num2str(minval) '(' num2str(mincol) ',' num2str(minrow) ') Maximum value: ' num2str(maxval) '(' num2str(maxcol) ',' num2str(maxrow) ')'])
             
-            result_fname = [getparent(basepath,'short') '_density_bound_coordmap_' date '_' num2str(WINDOW_SIZE) '_' metriclist{selectedmetric}];
+            
+            result_fname = [fnamelist{i}(1:end-4) '_bound_map_' date '_' num2str(WINDOW_SIZE) metriclist{selectedmetric}];
             
             saveas(gcf,fullfile(basepath,'Results', [result_fname '_fig.png']));
             saveas(gcf,fullfile(basepath,'Results', [result_fname '_fig.svg']));
