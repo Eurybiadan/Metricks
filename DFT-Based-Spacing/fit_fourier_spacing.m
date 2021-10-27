@@ -39,7 +39,6 @@ if ~exist('test_image','var') || isempty(test_image)
     [filename, pathname] = uigetfile('*.tif', 'Pick an image to segment');
 
     test_image = imread( fullfile(pathname, filename) );
-    
 end
 % tic;
 if size(test_image,3) >1
