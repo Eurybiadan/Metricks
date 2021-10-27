@@ -91,7 +91,7 @@ end
 
 if ~isempty(lut) % If we didn't directly input a scale,
     % ask if we want to scale the montage to a common (smallest) scale from given LUT.
-    pressedbutton=[]
+    pressedbutton=[];
     if ~exist('smallestscale','var')
         pressedbutton = questdlg('Scale montage to the common (smallest) scale from the selected LUT?',...
                                  'Scale to common size?', 'No');
@@ -254,10 +254,10 @@ end
 %% Display the results.
 if kstest(blendederrim(~isnan(blendederrim)))
     disp('The error is not normally  distributed.')
-    threshold = quantile(blendederrim(~isnan(blendederrim)),0.05)
+    threshold = quantile(blendederrim(~isnan(blendederrim)),0.05);
     
 else
-    threshold = mean(blendederrim(:),'omitnan')-2*std(blendederrim(:),'omitnan')
+    threshold = mean(blendederrim(:),'omitnan')-2*std(blendederrim(:),'omitnan');
     disp('The error is normally distributed.')
 end
 
@@ -314,6 +314,8 @@ if length(numPixels)>=1
         roi(cc.PixelIdxList{idx}) = 1;
     end
 end
+
+bounding_box = round(bounding_box);
 
 threshdensitymap=threshdensitymap.*roi;
 threshdensitymap(isnan(threshdensitymap))=0;

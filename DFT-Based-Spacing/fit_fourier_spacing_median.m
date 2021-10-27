@@ -63,8 +63,9 @@ if ~exist('row_or_cell','var')
     row_or_cell = 'cell';
 end
 
-if ~exist('roi_step','var') && ~isa(roi_size, 'function_handle')
-    roi_step = floor(roi_size/4);
+rstep = 6;
+if ~exist('roi_step','var') && ~isa(roi_size, 'function_handle')    
+    roi_step = floor(roi_size/rstep);
 end
 interped_spac_map=[];
 
@@ -160,7 +161,7 @@ confidence = nan(size(roi));
           
 
 tic;
-for r=1:length(pixel_spac(:))
+parfor r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
         if supersampling% We don't want this run on massive images (RAM sink)
@@ -173,7 +174,7 @@ for r=1:length(pixel_spac(:))
             rhostart = ceil(2048/min(im_size)); % Exclude the DC term from our radial average
         else
             % Make our hanning window for each ROI.
-            hann_twodee = 1; %hanning(roi_size)*hanning(roi_size)';
+            hann_twodee = hanning(size(roi{r},1))*hanning(size(roi{r},1))';
             
             power_spect = fftshift(fft2( hann_twodee.*double(roi{r}) ));
             power_spect = log10(abs(power_spect).^2);
@@ -190,7 +191,7 @@ for r=1:length(pixel_spac(:))
         rhosampling = .5;
         thetasampling = 1;
 
-        [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'makima', rhostart);
+        [polarroi, power_spect_radius] = imcart2pseudopolar(power_spect, rhosampling, thetasampling, [],'makima' , rhostart);
         polarroi = circshift(polarroi,-90/thetasampling,1);
         %figure(101); imagesc(polarroi); axis image;
         
@@ -237,7 +238,8 @@ if length(roi) > 1
         
         roi_coverage=roi_size;
         roi_overlap_rad= (roi_size/roi_step)/2; % How many indexes to the right and down one location overlaps with.
-
+        hann_twodee = hanning(roi_coverage)*hanning(roi_coverage)';
+        
         rowsteps = imbox(2):roi_step:(imbox(2)+imbox(4)-roi_size);
         colsteps = imbox(1):roi_step:(imbox(1)+imbox(3)-roi_size);
 

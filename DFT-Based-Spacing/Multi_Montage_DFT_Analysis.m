@@ -19,8 +19,8 @@ thisfolder = uigetdir(thisfolder, 'Select the folders containing the montages yo
 
 %%
 restartf=1;
-endf=1;
-% endf=length(folderList);
+% endf=1;
+endf=length(folderList);
 %%
 for f=restartf:endf
     restartf=f;

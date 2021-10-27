@@ -170,7 +170,7 @@ if strcmp(method, 'median')
 
         im = imresize(im, imsize);
 
-        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing_median(im, roi_size_fcn,corase_fov_coords);    
+        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing_median(im, roi_size_fcn, corase_fov_coords);    
 
     end
 else
@@ -184,7 +184,7 @@ else
 
         im = imresize(im, imsize);
 
-        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, roi_size_fcn,corase_fov_coords);    
+        [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, roi_size_fcn, corase_fov_coords);    
 
     end
 end
