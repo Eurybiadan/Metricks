@@ -93,11 +93,9 @@ for f=restartf:endf
                 errconfpolar(errconfpolar==0) = NaN;
                 errsplitpolar(errsplitpolar==0) = NaN;
                 
-                figure(1); plot(mean(errconfpolar,'omitnan')); hold on; plot(mean(errsplitpolar,'omitnan')); hold off;
+                
                 drawnow;
                 offset = 200;
-                errconfpolar = errconfpolar(:, offset:end);
-                errsplitpolar = errsplitpolar(:, offset:end);
                 
                 confannuli = zeros(size(blendederrim_conf));
                 splitannuli = zeros(size(blendederrim_conf));
@@ -105,16 +103,27 @@ for f=restartf:endf
                 avgdifferr = (mean(errconfpolar,'omitnan')-mean(errsplitpolar,'omitnan'))./ ...
                              ( (mean(errsplitpolar,'omitnan') + mean(errconfpolar,'omitnan'))/2 );
 
+                figure(5); plot(mean(errconfpolar,'omitnan')); hold on; plot(mean(errsplitpolar,'omitnan')); plot(avgdifferr); hold off;         
                          
-                         
-                confhigh  = find((avgdifferr>=-0.05) == 0, 1, 'first') + offset;
-                splithigh = find( (avgdifferr<=0.05) == 1, 1, 'first') + offset; %Problem is here.
-
+                confhigh  = find((avgdifferr(:, offset:end)>=-0.2) == 0, 1, 'first') + offset;
+                splithigh = find( (avgdifferr(:, offset:end)<=0.2) == 1, 1, 'first') + offset;
+                                
+                
                 blendrange = round((confhigh-splithigh)/2);
-                confhigh = confhigh-blendrange;
-                splithigh = splithigh+blendrange;
+                
+                % We want to make sure that we found a valid blending spot.
+                if blendrange ~= 0 && confhigh ~= (offset+1)
+                    mergeloc = confhigh-blendrange;
+                else
+                    disp(['Warning: unable to find ideal merging location. Guessing from first zero crossing...']);
+                    confhigh  = find((avgdifferr(:, offset:end)>=0) == 1, 1, 'first') + offset; %this needs work.
+%                     splithigh  = find((avgdifferr(:, offset:end)<0) == 0, 1, 'first') + offset;
+                    mergeloc = confhigh;
+                    blendrange = 256;
+                end
+                
 
-                confdisk = strel('disk',confhigh,0);
+                confdisk = strel('disk',mergeloc,0);
                 confdisk = confdisk.Neighborhood;
 
                 diskshiftx = floor(fovea_coords(1)-(size(confdisk,2)/2));
@@ -122,27 +131,26 @@ for f=restartf:endf
 
                 confannuli(diskshifty:diskshifty+size(confdisk,1)-1,...
                            diskshiftx:diskshiftx+size(confdisk,2)-1) = confdisk;
-                splitdisk = strel('disk',splithigh,0);
-                splitdisk = splitdisk.Neighborhood;
+                       
+                splitannuli = abs(1-confannuli);
 
-                diskshiftx = floor(fovea_coords(1)-(size(splitdisk,2)/2));
-                diskshifty = floor(fovea_coords(2)-(size(splitdisk,1)/2));
+                figure(1); subplot(1,2,1); imagesc(confannuli); axis image;
+                
+                confannuli = imgaussfilt(confannuli, blendrange/2);
+                splitannuli = imgaussfilt(splitannuli, blendrange/2);
 
-                splitannuli(diskshifty:diskshifty+size(splitdisk,1)-1,...
-                           diskshiftx:diskshiftx+size(splitdisk,2)-1) = splitdisk;
-
-                splitannuli = abs(1-splitannuli);
-
-                confannuli = imgaussfilt(confannuli, blendrange);
-                splitannuli = imgaussfilt(splitannuli, blendrange);
-
+                subplot(1,2,2); imagesc(confannuli); axis image;
+                
                 % Weight each map against its filtered annuli
                 density_map_conf = confannuli.*density_map_conf;
                 density_map_split = splitannuli.*density_map_split;
 
-                figure(1); imagesc(density_map_conf);
-                figure(2); imagesc(density_map_split);
-
+                
+                figure(2); subplot(1,2,1); imagesc(density_map_split); axis image;
+                subplot(1,2,2); imagesc(density_map_conf);axis image;
+                drawnow;
+                saveas(gcf, fullfile(thisfolder, folderList{f},'conf_split_density_areas.png') );
+                
                 density_map_comb = (density_map_conf+density_map_split)./(confannuli+splitannuli);
                 
                 denspolar = imcart2pseudopolar(density_map_comb, 1, .5, fovea_coords,'makima' , 0);

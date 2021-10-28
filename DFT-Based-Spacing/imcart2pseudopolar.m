@@ -31,6 +31,7 @@ if ~exist('location','var') || isempty(location)
 end
 
 im = double(im);
+im(isnan(im)) = 0;
 %%
 [X, Y]= meshgrid( 1:size(im,2), 1:size(im,1) );
 
