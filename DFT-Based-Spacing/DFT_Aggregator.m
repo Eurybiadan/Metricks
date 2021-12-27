@@ -68,7 +68,7 @@ global_dimension = fliplr(ceil(maxglobalbounds-minglobalbounds))+1; % Flipped so
 
 minglobalbounds = round(-minglobalbounds);
 %% Add all of the dft information to the montage, and combine.
-avg_spacing = zeros(global_dimension);
+avg_density = zeros(global_dimension);
 % weighted_avg_spacing = zeros(global_dimension);
 avg_error = zeros(global_dimension);
 combined_sum_map = zeros(global_dimension,'double');
@@ -76,28 +76,27 @@ combined_sum_map = zeros(global_dimension,'double');
 % Find the weighted averages of all of the subjects.
 for f=1:length(fNames)
     disp(['Calculating Averages: ' num2str(f) ' of ' num2str(length(fNames))])
-    load( fullfile(thispath, fNames{f}), 'blendedim', 'blendederrim', 'sum_map');
+    load( fullfile(thispath, fNames{f}), 'density_map_comb', 'blendederr_comb');
     
     rowrange = round((montage_rect{f}(1,2):montage_rect{f}(3,2))+minglobalbounds(2)+1);
     colrange = round((montage_rect{f}(1,1):montage_rect{f}(3,1))+minglobalbounds(1)+1);
     
     if isempty(strfind(fNames{f}, global_eye)) % If it doesn't match our eye, flip the montage data.
-        blendedim = fliplr(blendedim);
-        blendederrim = fliplr(blendederrim);
+        density_map_comb = fliplr(density_map_comb);
+        blendederr_comb = fliplr(blendederr_comb);
     end    
 
     % TO DENSITY - TEMPORARY
 %      blendedim = sqrt(3)./ (2*(blendedim.*scaling).^2);
 %      blendedim = (1000^2).*blendedim;
     
-    avg_spacing( rowrange, colrange) = sum(cat(3, avg_spacing( rowrange, colrange), blendedim),3,'omitnan');
-    avg_error( rowrange, colrange) = sum(cat(3, avg_error( rowrange, colrange), blendederrim),3,'omitnan');
-    combined_sum_map( rowrange, colrange) = sum(cat(3, combined_sum_map( rowrange, colrange), blendederrim>0),3,'omitnan');
-    clear blendedim blendederrim rowrange colrange
+    avg_density( rowrange, colrange) = sum(cat(3, avg_density( rowrange, colrange), density_map_comb),3,'omitnan');
+    avg_error( rowrange, colrange) = sum(cat(3, avg_error( rowrange, colrange), blendederr_comb),3,'omitnan');
+    combined_sum_map( rowrange, colrange) = sum(cat(3, combined_sum_map( rowrange, colrange), blendederr_comb>0),3,'omitnan');
+    clear density_map_comb blendederr_comb rowrange colrange
 end
 
-% avg_spacing = avg_spacing./combined_sum_map; %TO DENSITY-TEMPORARY
-avg_spacing = scaling.*avg_spacing./combined_sum_map;
+avg_density = avg_density./combined_sum_map;
 % avg_spacing= avg_spacing.*2/sqrt(3); % To ICD <-- only needed if row, not cell, spacing.
 avg_error = avg_error./combined_sum_map;
 
@@ -114,9 +113,9 @@ end
 threshold_mask = (avg_error>threshold); % & (combined_sum_map>10);
 
 %% To find foveal mask
-avg_density = avg_spacing; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
+% avg_density = avg_spacing; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
 % avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2); %<-- for cells/mm
-avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
+% avg_density = sqrt(3)./ (2*(avg_spacing).^2); %<-- for cells/deg
 
 threshspacingmap=avg_density(minglobalbounds(2)-768:minglobalbounds(2)+768, minglobalbounds(1)-768:minglobalbounds(1)+768);
 
@@ -213,14 +212,15 @@ end
 % Ensure that we only see the averages of data with more than X points going into it.
 threshold_mask = logical(threshold_mask.*(combined_sum_map>5)); 
 
+return; 
 %% Plot our masked data.
 
-spacingcaxis = quantile(avg_spacing(threshold_mask(:)),[0.01 0.99]);
-figure(1); imagesc(avg_spacing.*threshold_mask); title('Combined Spacing'); axis image;
+spacingcaxis = quantile(avg_density(threshold_mask(:)),[0.01 0.99]);
+figure(1); imagesc(avg_density.*threshold_mask); title('Combined Spacing'); axis image;
 caxis(spacingcaxis); colorbar;
 
 %% Output spacing image
-rescaled_avg_spacing = (avg_spacing.*threshold_mask)-spacingcaxis(1);
+rescaled_avg_spacing = (avg_density.*threshold_mask)-spacingcaxis(1);
 rescaled_avg_spacing(rescaled_avg_spacing<0) = 0;
 rescaled_avg_spacing = 255*(rescaled_avg_spacing./quantile(rescaled_avg_spacing(rescaled_avg_spacing~=0),0.99)); 
 rescaled_avg_spacing(rescaled_avg_spacing>255) = 255;
@@ -229,9 +229,10 @@ imwrite(rescaled_avg_spacing, parula(256), [num2str(length(fNames)) 'subjects_co
 clear rescaled_avg_spacing;
 
 %% Output error image
-errquartiles = quantile(avg_error(avg_error~=0),[0.01 0.05 0.25]);
+errquartiles = quantile(avg_error(avg_error~=0 & ~isnan(avg_error) & ~isinf(avg_error)),[0.001 0.01 0.05]);
 [firemap, amap] = firecmap(errquartiles(1), errquartiles(3), errquartiles(2),...
-                           min(avg_error(avg_error~=0)), max(avg_error(avg_error~=0)), 256);
+                           min(avg_error(avg_error~=0 & ~isnan(avg_error)& ~isinf(avg_error))), ...
+                           max(avg_error(avg_error~=0 & ~isnan(avg_error)& ~isinf(avg_error))), 256);
 
 rescaled_avg_err = avg_error.*threshold_mask;
 rescaled_avg_err = 255*rescaled_avg_err; 
@@ -242,9 +243,9 @@ figure(2); imagesc(rescaled_avg_err); colormap(firemap); axis image; colorbar; t
 clear rescaled_avg_err;
 
 %% Output density image
-avg_density = avg_spacing; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
+% avg_density = avg_density; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
 % avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2); %<-- for cells/mm
-avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
+% avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
 
 rescaled_avg_density = (avg_density.*threshold_mask)-quantile(avg_density(threshold_mask(:)),0.01);
 rescaled_avg_density(rescaled_avg_density<0) = 0;
@@ -254,16 +255,16 @@ rescaled_avg_density(rescaled_avg_density>255) = 255;
 figure(3); imagesc(avg_density.*threshold_mask); title('Combined Density'); axis image;
 caxis(quantile(avg_density(threshold_mask(:)),[0.01 0.99])); colorbar;
 imwrite(rescaled_avg_density, parula(256), [num2str(length(fNames)) 'subjects_combined_density.tif'])
-clear avg_density rescaled_avg_density;
+clear rescaled_avg_density;
 
 %% Output sum map
 
 imwrite(uint8(255*(combined_sum_map./max(combined_sum_map(:)))), parula(256), [num2str(length(fNames)) 'subjects_sum_map.tif']);
 
 %% Output directional plots
-avg_density = avg_spacing; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
+% avg_density = avg_density; %.*sqrt(3)/2; %<-- only needed if row, not cell, spacing.
 % avg_density = (1000^2).*sqrt(3)./ (2*(avg_density).^2); %<-- for cells/mm
-avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
+% avg_density = sqrt(3)./ (2*(avg_density).^2); %<-- for cells/deg
 
 maskedspac = avg_density.*threshold_mask;
 micron_position = (0:(1600/0.41))*0.41;
@@ -295,7 +296,7 @@ clear maskedspac temp_strip nasal_strip inf_strip sup_strip
 return;
 
 %% Determine average/stddev of all data.
-spacing_std_var = nan(global_dimension);
+value_map_variance = nan(global_dimension);
 
 
 % For finding outliers:
@@ -305,41 +306,41 @@ figure(1); clf; hold on;
 % Find the std deviations of all of the subjects.
 for f=1:length(fNames)
     disp(['Calculating Standard Deviation: ' num2str(f) ' of ' num2str(length(fNames))])
-    load( fullfile(thispath, fNames{f}), 'blendedim');
+    load( fullfile(thispath, fNames{f}), 'density_map_comb');
     
     rowrange = round((montage_rect{f}(1,2):montage_rect{f}(3,2))+minglobalbounds(2)+1);
     colrange = round((montage_rect{f}(1,1):montage_rect{f}(3,1))+minglobalbounds(1)+1);
     
     if isempty(strfind(fNames{f}, global_eye)) % If it doesn't match our eye, flip the montage data.
-        blendedim = fliplr(blendedim);
+        density_map_comb = fliplr(density_map_comb);
     end
     
     % TO DENSITY - TEMPORARY
-    blendedim = sqrt(3)./ (2*(blendedim*scaling).^2);
+%     blendedim = sqrt(3)./ (2*(blendedim*scaling).^2);
 %     blendedim = (1000^2).*blendedim;
     
-    blendedim = blendedim.*threshold_mask( rowrange, colrange);
+    density_map_comb = density_map_comb.*threshold_mask( rowrange, colrange);
 
-    thisdiff = sum( cat(3, blendedim, -avg_density( rowrange, colrange)) ,3).^2; % This line is good. Nans need to be carried through.
+    thisdiff = sum( cat(3, density_map_comb, -avg_density( rowrange, colrange)) ,3).^2; % This line is good. Nans need to be carried through.
     
 %     thisdiff =  sum( cat(3, (scaling.*blendedim).*(2/sqrt(3)), -avg_spacing( rowrange, colrange)) ,3).^2;
 
-    spacing_std_var( rowrange, colrange) = sum( cat(3,spacing_std_var( rowrange, colrange), thisdiff), 3,'omitnan'); 
+    value_map_variance( rowrange, colrange) = sum( cat(3,value_map_variance( rowrange, colrange), thisdiff), 3,'omitnan'); 
      clear thisdiff;
 
 
-    clear blendedim sum_map rowrange colrange
+    clear blendedim rowrange colrange
 end
 
 % plot(micron_position,temp_strip,'k', 'LineWidth',3);
 %%
- spacing_std_dev = spacing_std_var;
- spacing_std_dev = spacing_std_dev./(combined_sum_map-1);
- spacing_std_dev(isinf(spacing_std_dev)) =0;
- spacing_std_dev = sqrt(spacing_std_dev);
- maskedspac = spacing_std_dev.*threshold_mask;
+ value_std_dev = value_map_variance;
+ value_std_dev = value_std_dev./(combined_sum_map-1);
+ value_std_dev(isinf(value_std_dev)) =0;
+ value_std_dev = sqrt(value_std_dev);
+ maskedspac = value_std_dev.*threshold_mask;
 
-figure(3); imagesc(spacing_std_dev.*threshold_mask); title('Combined Spacing Std dev');
+figure(3); imagesc(value_std_dev.*threshold_mask); title('Combined Spacing Std dev');
 saveas(gcf,[num2str(length(fNames)) 'subjects_combined_stddev.svg']);
 
 figure(20); clf; hold on;
@@ -367,7 +368,7 @@ weighted_avg_error_std_dev = zeros(global_dimension);
 
 % Find the weighted std deviations of all of the subjects.
 for f=1:length(fNames)
-    load( fullfile(thispath, fNames{f}), 'blendedim', 'blendederrim', 'sum_map');
+    load( fullfile(thispath, fNames{f}), 'blendedim', 'blendederrim');
     
     rowrange = round((montage_rect{f}(1,2):montage_rect{f}(3,2))-minglobalbounds(2)+1);
     colrange = round((montage_rect{f}(1,1):montage_rect{f}(3,1))-minglobalbounds(1)+1);

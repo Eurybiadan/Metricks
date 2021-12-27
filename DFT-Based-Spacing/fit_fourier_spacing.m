@@ -47,7 +47,7 @@ end
 im_size = size(test_image);
 
 if ~exist('roi_size','var')
-    roi_size = im_size;
+    roi_size = 128; %im_size;
 end
 
 if ~exist('supersampling','var')
@@ -123,16 +123,24 @@ else
         j=round(imbox(1));
         i=round(imbox(2)); %supersampling takes on the foveal coords if the size is a function handle.
         rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.                
-        if rsize > imbox(3) || rsize > imbox(4)           
+        if (rsize*0.8) < imbox(3) && (rsize*0.8) < imbox(4)           
             rsize = min(imbox(3:4))-1;
+        else
+            warning(['Size of valid region is too small for requested rsize (' num2str(rsize) 'x' num2str(rsize) ' vs ' num2str(imbox(3)) 'x' num2str(imbox(4)) ').'])
+            sum_map=[];
+            interped_spac_map=[];
+            interped_conf_map=[];
+            avg_pixel_spac=NaN;
+            imbox=[];
+            return;
         end
         
         roi_step = floor(rsize/rdivider);
         
-        while (i+rsize-1)<=(imbox(2)+imbox(4))
-            while (j+rsize-1)<=(imbox(1)+imbox(3))
+        while (i+rsize-1)<(imbox(2)+imbox(4))
+            while (j+rsize-1)<(imbox(1)+imbox(3))
                 
-                numzeros = sum(sum(test_image(i:i+rsize-1, j:j+rsize-1)<=10));
+                numzeros = sum(sum(test_image(i:(i+rsize-1), j:(j+rsize-1))<=10));
 
                 if numzeros < (rsize*rsize)*0.05
                     roi{round(i/roi_step)+1,round(j/roi_step)+1} = test_image(i:i+rsize-1, j:j+rsize-1);
@@ -226,16 +234,16 @@ end
 % toc;
 
 avg_pixel_spac = mean(pixel_spac(~isnan(pixel_spac)) );
-std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
+%std_pixel_spac = std(pixel_spac(~isnan(pixel_spac)));
 interped_spac_map = avg_pixel_spac;
 interped_conf_map = confidence;
 
 
 %% If we've sampled over the region, then create the heat map
 if length(roi) > 1
+    
     interped_spac_map=zeros(im_size);
     interped_conf_map=zeros(im_size);
-    interped_corrected_err_map=zeros(im_size);
     sum_map=zeros(im_size);
     
     if ~isa(roi_size, 'function_handle')
@@ -270,14 +278,22 @@ if length(roi) > 1
         j=round(imbox(1));
         i=round(imbox(2)); %supersampling takes on the foveal coords if the size is a function handle.
         rsize = round(roi_size( sqrt( (i-supersampling(2)).^2+(j-supersampling(1)).^2))); %Update the estimated size of our roi on every loop.                
-        if rsize > imbox(3) || rsize > imbox(4)           
+        if (rsize*0.8) < imbox(3) && (rsize*0.8) < imbox(4)           
             rsize = min(imbox(3:4))-1;
+        else
+            warning(['Size of valid region is too small for requested rsize (' num2str(rsize) 'x' num2str(rsize) ' vs ' num2str(imbox(3)) 'x' num2str(imbox(4)) ').'])
+            sum_map=[];
+            interped_spac_map=[];
+            interped_conf_map=[];
+            imbox=[];
+            avg_pixel_spac=NaN;
+            return;
         end
         roi_step = floor(rsize/rdivider);
         
         
-        while (i+rsize-1)<=(imbox(2)+imbox(4))
-            while (j+rsize-1)<=(imbox(1)+imbox(3))
+        while (i+rsize-1)<(imbox(2)+imbox(4))
+            while (j+rsize-1)<(imbox(1)+imbox(3))
                                                 
                 if ~isnan( pixel_spac(round(i/roi_step)+1,round(j/roi_step)+1) )
 

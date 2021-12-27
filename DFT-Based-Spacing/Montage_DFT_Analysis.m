@@ -1,4 +1,4 @@
-function [blendedim, fovea_coords]=Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, roisize)
+function [blendedim, fovea_coords, validmask]=Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, roisize)
 % Copyright (C) 2019 Robert F Cooper
 % 
 %     This program is free software: you can redistribute it and/or modify
@@ -197,24 +197,26 @@ if strcmp(method, 'median')
     for i=1:length(imbox)
 
         thisbox = imbox{i};
-        thismap = im_spac_map{i};
-        thiserrmap = im_err_map{i};
-        thissummap = im_sum_map{i};
+        if ~isempty(thisbox)
+            thismap = im_spac_map{i};
+            thiserrmap = im_err_map{i};
+            thissummap = im_sum_map{i};
 
-        thismap(isnan(thismap))=0;
-        thiserrmap(isnan(thiserrmap))=0;
+            thismap(isnan(thismap))=0;
+            thiserrmap(isnan(thiserrmap))=0;
 
-        blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                   thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thismap.*thissummap;
+            blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                       thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                       thisbox(1):thisbox(1)+thisbox(3)-1 ) + thismap.*thissummap;
 
-        sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                 thisbox(1):thisbox(1)+thisbox(3)-1 ) = sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                                                               thisbox(1):thisbox(1)+thisbox(3)-1 ) + thissummap;
+            sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                     thisbox(1):thisbox(1)+thisbox(3)-1 ) = sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thissummap;
 
-        blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                   thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thiserrmap.*thissummap;
+            blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                       thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                       thisbox(1):thisbox(1)+thisbox(3)-1 ) + thiserrmap.*thissummap;
+        end
 
     end
     
@@ -225,24 +227,26 @@ else
     for i=1:length(imbox)
 
         thisbox = imbox{i};
-        thismap = im_spac_map{i};
-        thiserrmap = im_err_map{i};
-        thissummap = im_sum_map{i};
+        if ~isempty(thisbox)
+            thismap = im_spac_map{i};
+            thiserrmap = im_err_map{i};
+            thissummap = im_sum_map{i};
 
-%         weightedim = (thismap./thiserrmap); 
-%         weightedim(isnan(weightedim)) = 0;% Make sure no NaNs sneak in...
-        
-        blendedim( thisbox(2):thisbox(2)+thisbox(4),...
-                   thisbox(1):thisbox(1)+thisbox(3) ) = blendedim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thismap;%weightedim.*thissummap;
+    %         weightedim = (thismap./thiserrmap); 
+    %         weightedim(isnan(weightedim)) = 0;% Make sure no NaNs sneak in...
 
-        sum_map( thisbox(2):thisbox(2)+thisbox(4),...
-                 thisbox(1):thisbox(1)+thisbox(3) ) = sum_map( thisbox(2):thisbox(2)+thisbox(4),...
-                                                               thisbox(1):thisbox(1)+thisbox(3) ) + thissummap;
+            blendedim( thisbox(2):thisbox(2)+thisbox(4),...
+                       thisbox(1):thisbox(1)+thisbox(3) ) = blendedim( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                       thisbox(1):thisbox(1)+thisbox(3) ) + thismap;%weightedim.*thissummap;
 
-        blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
-                   thisbox(1):thisbox(1)+thisbox(3) ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap;   
+            sum_map( thisbox(2):thisbox(2)+thisbox(4),...
+                     thisbox(1):thisbox(1)+thisbox(3) ) = sum_map( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thissummap;
+
+            blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
+                       thisbox(1):thisbox(1)+thisbox(3) ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                       thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap;   
+        end
     end
     
     blendedim = blendedim./blendederrim;
@@ -250,6 +254,7 @@ else
 end
 
 
+validmask = ~isnan(blendedim);
 
 %% Display the results.
 if kstest(blendederrim(~isnan(blendederrim)))
@@ -326,7 +331,7 @@ smoothmap = smoothmap(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_
 smoothmap(isnan(smoothmap)) = 0;
 smoothmap = imgaussfilt(smoothmap,8);
 
-smoothmaptheshold = quantile(smoothmap(smoothmap>0),.95);
+smoothmaptheshold = quantile(smoothmap(smoothmap>0),.9);
 
 figure(10); clf; hold on;
 imagesc(smoothmap); axis image;
@@ -402,6 +407,7 @@ foveamask(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bound
 
 % foveamask = ~poly2mask(foveapts(:,1)+bounding_box(1),foveapts(:,2)+bounding_box(2),size(blendedim,1),size(blendedim,2));
 % figure;  imagesc(foveamask)
+
 
 
 if nargout == 0

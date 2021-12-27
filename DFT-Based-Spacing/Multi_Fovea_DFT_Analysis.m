@@ -8,7 +8,7 @@
 
 thisfolder = pwd;
 
-[foveafile, foveafold] = uigetfile(fullfile(pwd,'*.xlsx'), 'Select the folders containing the foveas you wish to assess.');
+[foveafile, foveafold] = uigetfile(fullfile(pwd,'*.xlsx'), 'Select the file containing the foveas you wish to assess.');
 
 [~,filelist,~] = xlsread(fullfile(foveafold,foveafile));
 

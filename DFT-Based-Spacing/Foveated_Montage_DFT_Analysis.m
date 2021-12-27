@@ -1,4 +1,4 @@
-function [fovea_coords]=Foveated_Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, corase_fov_coords)
+function [fovea_coords, validmask]=Foveated_Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, corase_fov_coords, mask)
 % Copyright (C) 2019 Robert F Cooper
 % 
 %     This program is free software: you can redistribute it and/or modify
@@ -86,6 +86,14 @@ if length(scaling)>1
     error('The scales of the images are not the same!');
 end
 
+% First run the normal analysis with a larger ROI size (should speed up
+% initial run)
+if ~exist('corase_fov_coords','var') || isempty(corase_fov_coords)
+    [~, corase_fov_coords, validmask]=Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, 256);
+    mask = validmask;
+end
+
+
 if ~isempty(lut) % If we didn't directly input a scale,
     % ask if we want to scale the montage to a common (smallest) scale from given LUT.
     pressedbutton=[]
@@ -129,11 +137,6 @@ end
 
 method = 'mean';
 
-% First run the normal analysis with a larger ROI size (should speed up
-% initial run)
-if ~exist('corase_fov_coords','var') || isempty(corase_fov_coords)
-    [~, corase_fov_coords]=Montage_DFT_Analysis(thispath, fNames, scaling, unit, lut, smallestscale, 256);
-end
 roi_size_fcn = create_roi_size_fcn(128,384,1/scaling,10/scaling); % 1 to 10 degrees.
 
 
@@ -159,6 +162,10 @@ else
     myPool=gcp('nocreate');
 end
 
+if ~exist('mask','var')
+    mask=[];
+end
+
 if strcmp(method, 'median')
     parfor i=1:length(fNames)
         fNames{i}
@@ -168,7 +175,11 @@ if strcmp(method, 'median')
             im = im(:,:,1);
         end
 
-        im = imresize(im, imsize);
+        im = double(imresize(im, imsize));
+        
+        if ~isempty(mask)
+            im = im.*double(mask);
+        end
 
         [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing_median(im, roi_size_fcn, corase_fov_coords);    
 
@@ -182,7 +193,10 @@ else
             im = im(:,:,1);
         end
 
-        im = imresize(im, imsize);
+        im = double(imresize(im, imsize));
+        if ~isempty(mask)
+            im = im.*double(mask);
+        end
 
         [~, im_spac_map{i}, im_err_map{i}, im_sum_map{i}, imbox{i}] = fit_fourier_spacing(im, roi_size_fcn, corase_fov_coords);    
 
@@ -202,25 +216,26 @@ if strcmp(method, 'median')
     for i=1:length(imbox)
 
         thisbox = imbox{i};
-        thismap = im_spac_map{i};
-        thiserrmap = im_err_map{i};
-        thissummap = im_sum_map{i};
+        if ~isempty(thisbox)
+            thismap = im_spac_map{i};
+            thiserrmap = im_err_map{i};
+            thissummap = im_sum_map{i};
 
-        thismap(isnan(thismap))=0;
-        thiserrmap(isnan(thiserrmap))=0;
+            thismap(isnan(thismap))=0;
+            thiserrmap(isnan(thiserrmap))=0;
 
-        blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                   thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thismap.*thissummap;
+            blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                       thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendedim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                       thisbox(1):thisbox(1)+thisbox(3)-1 ) + thismap.*thissummap;
 
-        sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                 thisbox(1):thisbox(1)+thisbox(3)-1 ) = sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                                                               thisbox(1):thisbox(1)+thisbox(3)-1 ) + thissummap;
+            sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                     thisbox(1):thisbox(1)+thisbox(3)-1 ) = sum_map( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thissummap;
 
-        blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                   thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
-                                                                   thisbox(1):thisbox(1)+thisbox(3)-1 ) + thiserrmap.*thissummap;
-
+            blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                       thisbox(1):thisbox(1)+thisbox(3)-1 ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4)-1,...
+                                                                       thisbox(1):thisbox(1)+thisbox(3)-1 ) + thiserrmap.*thissummap;
+        end
     end
     
     blendedim = blendedim./sum_map;
@@ -230,24 +245,26 @@ else
     for i=1:length(imbox)
 
         thisbox = imbox{i};
-        thismap = im_spac_map{i};
-        thiserrmap = im_err_map{i};
-        thissummap = im_sum_map{i};
+        if ~isempty(thisbox)
+            thismap = im_spac_map{i};
+            thiserrmap = im_err_map{i};
+            thissummap = im_sum_map{i};
 
-%         weightedim = (thismap./thiserrmap); 
-%         weightedim(isnan(weightedim)) = 0;% Make sure no NaNs sneak in...
-        
-        blendedim( thisbox(2):thisbox(2)+thisbox(4),...
-                   thisbox(1):thisbox(1)+thisbox(3) ) = blendedim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thismap;%weightedim.*thissummap;
+    %         weightedim = (thismap./thiserrmap); 
+    %         weightedim(isnan(weightedim)) = 0;% Make sure no NaNs sneak in...
 
-        sum_map( thisbox(2):thisbox(2)+thisbox(4),...
-                 thisbox(1):thisbox(1)+thisbox(3) ) = sum_map( thisbox(2):thisbox(2)+thisbox(4),...
-                                                               thisbox(1):thisbox(1)+thisbox(3) ) + thissummap;
+            blendedim( thisbox(2):thisbox(2)+thisbox(4),...
+                       thisbox(1):thisbox(1)+thisbox(3) ) = blendedim( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                       thisbox(1):thisbox(1)+thisbox(3) ) + thismap;%weightedim.*thissummap;
 
-        blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
-                   thisbox(1):thisbox(1)+thisbox(3) ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
-                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap;   
+            sum_map( thisbox(2):thisbox(2)+thisbox(4),...
+                     thisbox(1):thisbox(1)+thisbox(3) ) = sum_map( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                   thisbox(1):thisbox(1)+thisbox(3) ) + thissummap;
+
+            blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
+                       thisbox(1):thisbox(1)+thisbox(3) ) = blendederrim( thisbox(2):thisbox(2)+thisbox(4),...
+                                                                       thisbox(1):thisbox(1)+thisbox(3) ) + thiserrmap;
+        end
     end
     
     blendedim = blendedim./blendederrim;
@@ -255,7 +272,7 @@ else
 end
 
 
-
+validmask = ~isnan(blendedim);
 %% Display the results.
 if kstest(blendederrim(~isnan(blendederrim)))
     disp('The error is not normally  distributed.')
@@ -298,7 +315,7 @@ if length(numPixels)>=1
     numPixels = sort(numPixels,'descend')./biggest;
     % If this section is not far and away the biggest region, 
     % request that the user helps you out. Otherwise, use the biggest CC.
-    if any(numPixels(2:end)>0.8)
+%     if any(numPixels(2:end)>0.8)
         % To find foveal center
         fig=figure(10); clf; hold on;
         imagesc(density_map.*threshold_mask); axis image;
@@ -312,13 +329,14 @@ if length(numPixels)>=1
                         size(density_map,1), size(density_map,2));
         bounding_box = pos;
         close(fig)
-    else
-        bounding_box = regionprops(cc,'BoundingBox');
-        bounding_box = bounding_box(idx).BoundingBox;
-        roi = zeros(size(density_map));
-        roi(cc.PixelIdxList{idx}) = 1;
-    end
+%     else
+%         bounding_box = regionprops(cc,'BoundingBox');
+%         bounding_box = bounding_box(idx).BoundingBox;
+%         roi = zeros(size(density_map));
+%         roi(cc.PixelIdxList{idx}) = 1;
+%     end
 end
+bounding_box = round(bounding_box);
 
 threshdensitymap=threshdensitymap.*roi;
 threshdensitymap(isnan(threshdensitymap))=0;
@@ -350,6 +368,46 @@ plot(foveapts(:,1),foveapts(:,2),'.');
 
 ellipsefit = fit_ellipse(foveapts(:,1),foveapts(:,2));
 
+%If we can't find an ellipse here, drop the threshold by a lot.
+if isempty(ellipsefit.X0_in) || isempty(ellipsefit.Y0_in)
+    figure(10); clf; hold on;
+    imagesc(density_map.*threshold_mask); axis image;
+    title('Refine the Rectangle over the fovea.');
+    h=imrect(gca, bounding_box);
+    h.Deletable = false;
+    pos= wait(h);
+
+    roi = poly2mask([pos(1) pos(1)+pos(3) pos(1)+pos(3) pos(1) pos(1)],...
+                    [pos(2) pos(2) pos(2)+pos(4) pos(2)+pos(4) pos(2)],...
+                    size(density_map,1), size(density_map,2));
+    bounding_box = pos;
+    
+    smoothmap = density_map(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bounding_box(1)+bounding_box(3));
+    smoothmap(isnan(smoothmap)) = 0;
+    smoothmap = imgaussfilt(smoothmap,8);
+   
+    figure(10); clf; hold on;
+    imagesc(smoothmap); axis image;
+    smoothmaptheshold = quantile(smoothmap(smoothmap>0),.85);
+    
+    [clvls]=contour(smoothmap, [smoothmaptheshold smoothmaptheshold]);
+
+    [maxlvl]=max(clvls(1,:));
+
+    bloblocs = find(clvls(1,:)==maxlvl); % Sometimes we have multiple contour pieces at the same lvl.
+
+    upperclvl=[];
+    for b=1:length(bloblocs)
+        blobval = clvls(1 ,bloblocs(b));    
+        upperclvl = [upperclvl; clvls(:,bloblocs(b)+1:bloblocs(b)+clvls(2,bloblocs(b)))'];
+    end
+    convpts = convhull(upperclvl(:,1), upperclvl(:,2));
+    foveapts = upperclvl(convpts,:);
+    plot(foveapts(:,1),foveapts(:,2),'.');
+
+    ellipsefit = fit_ellipse(foveapts(:,1),foveapts(:,2));
+end
+%%
 fovea_coords = [ellipsefit.X0_in ellipsefit.Y0_in];
 
 % rotation matrix to rotate the axes with respect to an angle phi
@@ -377,7 +435,7 @@ smellipse_x_r     = ellipsefit.X0 + (ellipsefit.a/2)*cos( smtheta_r );
 smellipse_y_r     = ellipsefit.Y0 + (ellipsefit.b/2)*sin( smtheta_r );
 smrotated_ellipse = R * [smellipse_x_r;smellipse_y_r];
 
-smfoveamask = poly2mask(smrotated_ellipse(1,:),smrotated_ellipse(2,:),size(threshdensitymap,1),size(threshdensitymap,2));
+smfoveamask = poly2mask(smrotated_ellipse(1,:),smrotated_ellipse(2,:),size(smoothmap,1),size(smoothmap,2));
 smbounding = regionprops(smfoveamask,'BoundingBox');
 foveamask= activecontour(smoothmap, smfoveamask,300);
 
@@ -396,7 +454,7 @@ if ccfovmask.NumObjects >= 1
         end
     end
     
-    smfoveamask = ones(size(threshdensitymap,1),size(threshdensitymap,2));
+    smfoveamask = ones(size(smoothmap,1),size(smoothmap,2));
     smfoveamask(ccfovmask.PixelIdxList{mostind}) = 0;
 %     figure;  imagesc(smfoveamask)
 end
@@ -406,7 +464,7 @@ foveamask = ones(size(blendedim,1),size(blendedim,2));
 foveamask(bounding_box(2):bounding_box(2)+bounding_box(4), bounding_box(1):bounding_box(1)+bounding_box(3)) = smfoveamask;
 
 % foveamask = ~poly2mask(foveapts(:,1)+bounding_box(1),foveapts(:,2)+bounding_box(2),size(blendedim,1),size(blendedim,2));
-% figure;  imagesc(foveamask)
+figure;  imagesc(foveamask)
 
 
 
@@ -427,7 +485,7 @@ blendedim = blendedim.*2/sqrt(3); % To convert to ICD spacing.
 scaled_spacing = (blendedim.*scaling)-min(blendedim(:).*scaling);
 scaled_spacing = 255.*(scaled_spacing./ max(scaled_spacing(:)) );
 
-figure(2); imagesc( (blendedim.*scaling) ); axis image; colorbar;
+% figure(2); imagesc( (blendedim.*scaling) ); axis image; colorbar;
 imwrite( uint8(scaled_spacing.*threshold_mask), parula(256), fullfile(result_path, [prefix 'thresh_montage_spacing_' num2str(scaling,'%5.2f') '.tif']))
 clear scaled_spacing;
 
@@ -438,7 +496,7 @@ scaled_error = 255*blendederrim;
                         min(blendederrim(blendederrim~=0)), ...
                         max(blendederrim(blendederrim~=0)), 256);
 
-figure(3); imagesc(blendederrim); colormap(cmap); axis image; colorbar;
+% figure(3); imagesc(blendederrim); colormap(cmap); axis image; colorbar;
 imwrite( uint8(scaled_error), cmap,fullfile(result_path, [prefix 'thresh_montage_err_' num2str(scaling,'%5.2f') '.png']), 'Transparency',amap)
 clear scaled_error;
 

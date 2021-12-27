@@ -30,6 +30,9 @@ end
 if isempty(prior)
     
     [initshift, firsterr, initshiftind] = fourierFit_rough(fourierProfile, doplots);
+    
+    
+    
     fitParams.shift = initshift;
     % Make initial guesses
     fitParams.scale1 = fourierProfile(1)-fourierProfile(initshiftind);
@@ -63,7 +66,7 @@ end
 initParams = fitParams;
 % Set fmincon options
 options = optimset('fmincon');
-options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off','Algorithm','interior-point');
+options = optimset(options,'Diagnostics','off','Display','off','LargeScale','off','Algorithm','sqp');
 
 x1 = ParamsToX(fitParams);
 % [scale1 decay1 offset1 exp1 scale2 decay2 exp2 shift]
@@ -299,7 +302,11 @@ function fullExp = ComputeModelPreds(params,freqBase)
 
 fullExp = params.offset1 + params.scale1*params.exp1.^( -params.decay1 * freqBase );
 
+
 bottomExpLoc = find(freqBase>params.shift);
+if isempty(bottomExpLoc)
+    bottomExpLoc = 1
+end
 bottomExpTime = freqBase(bottomExpLoc);
 
 % The exponential must always line up with the other exponential function's

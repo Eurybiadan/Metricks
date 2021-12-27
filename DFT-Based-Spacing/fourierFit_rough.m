@@ -71,6 +71,9 @@ f = fit([1:length(residuals)]',residuals','SmoothingSpline',fitops);
 residuals = f(1:length(residuals))';
 
 [pks,locs] = findpeaks(fliplr(residuals*-1));
+[~, l] = min(pks);
+maxnegdiff_ind = locs(l);
+
 locs = locs(pks>0); % Find all local minima that are below 0 (the fit is underneath the data)
 
 locs = length(fourierProfile)+1-locs; % Find the furthest out index of this peak.
