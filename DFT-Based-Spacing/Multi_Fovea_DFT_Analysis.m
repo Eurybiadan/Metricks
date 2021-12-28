@@ -8,7 +8,7 @@
 
 thisfolder = pwd;
 
-[foveafile, foveafold] = uigetfile(fullfile(pwd,'*.xlsx'), 'Select the file containing the foveas you wish to assess.');
+[foveafile, foveafold] = uigetfile(fullfile(pwd,'*.xlsx'), 'Select the folders containing the foveas you wish to assess.');
 
 [~,filelist,~] = xlsread(fullfile(foveafold,foveafile));
 
@@ -28,17 +28,43 @@ for f=restartf:endf
         splitlist=split(filelist{f,1},'_');
         filedir=fullfile(lutfolder, [splitlist{2} '_' splitlist{4}],'confocal');
         
-        [ scalinginfo, ~, lut ]=determine_scaling(filedir, filelist(f,1), fullfile(lutfolder,lutfname) ,'degrees');
+        [ scaling, ~, lut ]=determine_scaling(filedir, filelist(f,1), fullfile(lutfolder,lutfname) ,'degrees');
 
         foveaim = imread(fullfile(filedir,filelist{f,1}));
         
-        [spac, spacmap, confmap, summap, imbox] = fit_fourier_spacing(foveaim,96,true);
+        % Look 
+        all_scales = nan(length(filelist),1);
+
+        for i=1:length(lut{1})
+            % Calculate the scale for each identifier.                                
+
+            axiallength = lut{2}(i);
+            pixelsperdegree = lut{3}(i);
+
+            micronsperdegree = (291*axiallength)/24;
+
+            % Only calc degrees, that's what we're using.
+            all_scales(i) = 1/pixelsperdegree;
+
+        end
+
+        global_scale = min(all_scales); % Everything will be scaled to this.
+
+        rel_scale = scaling./global_scale; % We will need to scale our images by this.
+        scaling = global_scale; % The new scale becomes this.
         
-        densim = zeros(size(foveaim));
+        imsize = round(size(foveaim).*rel_scale);
+        
+        foveaim = double(imresize(foveaim, imsize(1:2)));
+        
+        [spac, spacmap, confmap, summap, imbox] = fit_fourier_spacing(foveaim, 96, false);
+        
+        imsize = size(foveaim);
+        densim = zeros(imsize(1:2));
         
         weightedmap = spacmap./confmap;
         
-        density_map = sqrt(3)./ (2*(weightedmap*scalinginfo).^2);
+        density_map = sqrt(3)./ (2*(weightedmap*scaling).^2);
         density_map(isinf(density_map))=0;
         
         densim(imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3)) = density_map;

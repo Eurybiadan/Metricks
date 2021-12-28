@@ -19,8 +19,8 @@ thisfolder = uigetdir(thisfolder, 'Select the folders containing the montages yo
 [lutfname, lutfolder] = uigetfile(fullfile(pwd,'*.csv'),'Select scaling LUT, OR cancel if you want to input the scale directly.');
 
 %%
-restartf = 45;
-endf = 45; %length(folderList);
+restartf = 1;
+endf = length(folderList);
 %%
 for f=restartf:endf
     restartf=f;
@@ -58,9 +58,9 @@ for f=restartf:endf
     end
 end
 
-%% Process each of the above.
+%% Process each of the above, merging their pieces together
 restartf=1;
-endf=length(folderList);
+endf=1; %length(folderList);
 %%
 for f=restartf:endf
     restartf=f;
@@ -68,15 +68,30 @@ for f=restartf:endf
     something=false;
     if isdir(f)
         confocaldir=fullfile(thisfolder, folderList{f},'confocal','Results_foveated');
+        foveadir=fullfile(thisfolder, folderList{f},'confocal','Results_fovea_map');
         splitdir=fullfile(thisfolder, folderList{f},'split detection','Results_foveated');
         
         if exist(confocaldir, 'dir') && exist(splitdir, 'dir')
             fNameC = read_folder_contents(confocaldir,'mat');
+            fNameCF = read_folder_contents(foveadir,'mat');
             fNameS = read_folder_contents(splitdir,'mat');
             
             if ~isempty(fNameC) && ~isempty(fNameS)
                 something=true;
                 disp(['***** Merging data from: ' confocaldir ' and\n ' splitdir ' *****']);
+                
+                
+                load(fullfile(foveadir, fNameCF{1}), 'densim', 'imbox', 'confmap', 'summap');
+                
+                densim = densim(:,:,1);
+                densim(isnan(densim)) = 0;
+                blendederrim_fov = zeros(size(densim));
+                blendederrim_fov(imbox(2):imbox(2)+imbox(4), imbox(1):imbox(1)+imbox(3)) = confmap./summap;
+                blendederrim_fov(isnan(blendederrim_fov)) = 0;
+                foveal_data_mask = blendederrim_fov ~= 0;
+                fovea_merge_loc = floor(min(size(confmap))/2); % Set the max merge loc based on the short edge of the fovea image.
+                density_map_fov = densim;
+                clear densim imbox confmap summap
                 
                 load(fullfile(confocaldir, fNameC{1}), 'density_map', 'blendederrim','fovea_coords', 'scaling');
                 blendederrim_conf = blendederrim;
@@ -90,8 +105,10 @@ for f=restartf:endf
                 disp(['Data loaded, merging...']);
                 clear density_map blendederrim
             
+                errfovpolar = imcart2pseudopolar(blendederrim_fov, 1, .5, fovea_coords,'makima' , 0);
                 errconfpolar = imcart2pseudopolar(blendederrim_conf, 1, .5, fovea_coords,'makima' , 0);
                 errsplitpolar = imcart2pseudopolar(blendederrim_split, 1, .5, fovea_coords,'makima' , 0);
+                errfovpolar(errfovpolar<=0) = NaN;
                 errconfpolar(errconfpolar<=0) = NaN;
                 errsplitpolar(errsplitpolar<=0) = NaN;
                 
@@ -99,22 +116,28 @@ for f=restartf:endf
                 drawnow;
                 
                 
+                fovannuli = zeros(size(blendederrim_fov));
                 confannuli = zeros(size(blendederrim_conf));
                 splitannuli = zeros(size(blendederrim_conf));
 
                 avgdifferr = (mean(errconfpolar,'omitnan')-mean(errsplitpolar,'omitnan'))./ ...
                              ( (mean(errsplitpolar,'omitnan') + mean(errconfpolar,'omitnan'))/2 );
 
-                figure(5); plot(mean(errconfpolar,'omitnan')); hold on; plot(mean(errsplitpolar,'omitnan')); plot(avgdifferr); hold off;         
-                axis([0 length(errconfpolar) -2 2]); legend('Confocal Confidence', 'Split Confidence', '% diff');
+                figure(5); plot(mean(errconfpolar,'omitnan')); hold on; plot(mean(errsplitpolar,'omitnan')); plot(mean(errfovpolar,'omitnan')); plot(avgdifferr);  hold off; 
+                axis([0 length(errconfpolar) -2 2]); legend('Confocal Confidence', 'Split Confidence', 'foveal', '% diff');
                 drawnow;
                 saveas(gcf, fullfile(thisfolder, folderList{f},'conf_split_polarerror.png') );
+                
+                
+                fovea_blend_range = 64;
+%                 fovea_merge_loc = find(any(isnan(errfovpolar),1),1,'first')-fovea_blend_range;
                 
                 offset = find((avgdifferr>=0) == 1, 1, 'first');    
                 
                 MAXOFFSET = 2000;
                 
-                % We want to make sure that we found a valid blending spot.
+                % We want to make sure that we found a valid blending spot
+                % for the confocal to split.
                 if ~isempty(offset) && offset < MAXOFFSET
                     
                     confhigh  = find((avgdifferr(:, offset:end)>=-0.2) == 0, 1, 'first') + offset;
@@ -139,8 +162,68 @@ for f=restartf:endf
                     mergeloc = confhigh;
                     blendrange = 512;
                 end
-                
 
+                % First we merge in our fovea to the confocal map.
+                foveadisk = strel('disk',fovea_merge_loc,0);
+                foveadisk = foveadisk.Neighborhood;
+                
+                diskshiftx = floor(fovea_coords(1)-(size(foveadisk,2)/2));
+                disksizex = diskshiftx+size(foveadisk,2)-1;
+                diskshifty = floor(fovea_coords(2)-(size(foveadisk,1)/2));
+                disksizey = diskshifty+size(foveadisk,1)-1;
+                
+                diskstartx = 1;
+                diskstarty = 1;
+                diffx=0;    
+                diffy=0;
+                
+                if diskshiftx<1
+                    diskstartx = (-diskshiftx)+1;
+                    diskshiftx=1;                    
+                end
+                if diskshifty<1
+                    diskstarty = (-diskshifty)+1;
+                    diskshifty=1;                    
+                end
+                
+                if disksizex > size(fovannuli,2)
+                    diffx = size(fovannuli,2)-disksizex;
+                    disksizex = disksizex+diffx;
+                end
+                if disksizey > size(confannuli,1)
+                    diffy = size(fovannuli,1)-disksizey;
+                    disksizey = disksizey+diffy;
+                end
+                
+                fovannuli(diskshifty:disksizey,...
+                           diskshiftx:disksizex) = foveadisk(diskstarty:end+diffy,...
+                                                            diskstartx:end+diffx);
+                %Trim the annulus based on the actual presence of foveal
+                %data, so we don't get weird behavior. Erode it by the
+                %blend range so that we have data to blend with (no hard
+                %edges)
+                fovannuli = imerode(foveal_data_mask, ones(2*fovea_blend_range)).*fovannuli;
+                
+                conf_to_fovannuli = abs(1-fovannuli);
+                
+                figure(10); subplot(1,2,1); imagesc(fovannuli); axis image;
+                
+                fovannuli = imgaussfilt(fovannuli, fovea_blend_range/2);
+                conf_to_fovannuli = imgaussfilt(conf_to_fovannuli, fovea_blend_range/2);
+                
+                figure(10); subplot(1,2,2); imagesc(fovannuli); axis image;
+                
+                density_map_fov = fovannuli.*density_map_fov;
+                fovdensity_map_conf = conf_to_fovannuli.*density_map_conf;
+                
+                density_map_conf = (density_map_fov+fovdensity_map_conf)./(fovannuli+conf_to_fovannuli);
+                
+                figure(11); subplot(1,2,1); imagesc(density_map_fov); axis image;
+                subplot(1,2,2); imagesc(fovdensity_map_conf);axis image;
+                
+                figure(12); imagesc(density_map_conf); axis image;
+                
+                % THEN we merge the confocal to the split.
                 confdisk = strel('disk',mergeloc,0);
                 confdisk = confdisk.Neighborhood;
 
@@ -171,7 +254,7 @@ for f=restartf:endf
                     diffy = size(confannuli,1)-disksizey;
                     disksizey = disksizey+diffy;
                 end
-                
+
                 confannuli(diskshifty:disksizey,...
                            diskshiftx:disksizex) = confdisk(diskstarty:end+diffy,...
                                                             diskstartx:end+diffx);
