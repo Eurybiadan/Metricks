@@ -15,8 +15,8 @@ thisfolder = pwd;
 [lutfname, lutfolder] = uigetfile(fullfile(pwd,'*.csv'),'Select scaling LUT, OR cancel if you want to input the scale directly.');
 
 %%
-restartf=1;
-endf=length(filelist);
+restartf=8;
+endf=8; %length(filelist);
 
 %%
 for f=restartf:endf
@@ -54,6 +54,12 @@ for f=restartf:endf
         scaling = global_scale; % The new scale becomes this.
         
         imsize = round(size(foveaim).*rel_scale);
+
+        if contains(fNames{1},'11102_OD')  % This factor was added to account for trial lenses.
+            imsize = round( imsize(1:2) * 1.13 );
+        elseif contains(fNames{1},'11051_OD')  % This factor was added to account for trial lenses.
+            imsize = round( imsize(1:2) * 1.1369 );
+        end
         
         foveaim = double(imresize(foveaim, imsize(1:2)));
         

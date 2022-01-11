@@ -142,6 +142,12 @@ imsize = size(imread( fullfile(thispath, fNames{1}) ));
 
 imsize = round( imsize(1:2).*rel_scale );
 
+if contains(fNames{1},'11102_OD')  % This factor was added to account for trial lenses.
+    imsize = round( imsize(1:2) * 1.13 );
+elseif contains(fNames{1},'11051_OD')  % This factor was added to account for trial lenses.
+    imsize = round( imsize(1:2) * 1.1369 );
+end
+
 fnamesplits = strsplit(fNames{1},'_');
 prefix=[];
 for f=1:5 % build our prefix.

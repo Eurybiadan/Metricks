@@ -19,8 +19,8 @@ thisfolder = uigetdir(thisfolder, 'Select the folders containing the montages yo
 [lutfname, lutfolder] = uigetfile(fullfile(pwd,'*.csv'),'Select scaling LUT, OR cancel if you want to input the scale directly.');
 
 %%
-restartf = 1;
-endf = length(folderList);
+restartf = 46;
+endf = 46; %length(folderList);
 %%
 for f=restartf:endf
     restartf=f;
@@ -60,7 +60,7 @@ end
 
 %% Process each of the above, merging their pieces together
 restartf=1;
-endf=1; %length(folderList);
+endf=length(folderList);
 %%
 for f=restartf:endf
     restartf=f;
@@ -300,11 +300,13 @@ for f=restartf:endf
                 
                 [X, Y] = meshgrid(1:size(density_map_comb,2), 1:size(density_map_comb,1));
                 
-                % Find all the points within 1.75 degrees of the fovea
-                inrangemask = sqrt((X-fovea_coords(1)).^2 + (Y-fovea_coords(2)).^2) <= 1.75/scaling;
-                % Remove all values outside the fovea that are more than 66% of the maximal foveal values.
+                % Find all the points within 0.5 degree circle of the fovea
+                inrangemask = sqrt((X-fovea_coords(1)).^2 + (Y-fovea_coords(2)).^2) <= .5/scaling;               
                 
-                nohigher = max(max(density_map_comb.*inrangemask))*.66
+                nohigher = density_map_comb.*inrangemask;
+                nohigher = nohigher(~isnan(nohigher) & nohigher~=0);
+
+                nohigher = quantile(nohigher, [0.9]); % Nothing outside this range should be higher than the 90th percentile our foveal data.
                 
                 density_map_comb(( (density_map_comb > nohigher) & ~inrangemask )) = NaN;
                            
