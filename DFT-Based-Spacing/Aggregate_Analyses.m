@@ -92,12 +92,12 @@ for f=1:length(fNames)
     disp(['Loading, downsampling and prepping: ' fNames{f}])
     load( fullfile(individual_path, fNames{f}), 'density_map_comb', 'blendederr_comb');
     
-    indiv_size = [montage_rect{f}(3,2)-montage_rect{f}(1,2) montage_rect{f}(3,1)-montage_rect{f}(1,1)];
-    indiv_shifted_density = nan(indiv_size);
-    indiv_shifted_confidence = nan(indiv_size);
+    indiv_size = [montage_rect{f}(3,2)-montage_rect{f}(1,2)+1 montage_rect{f}(3,1)-montage_rect{f}(1,1)+1];
+    indiv_shifted_density = nan(downsampled_size);
+    indiv_shifted_confidence = nan(downsampled_size);
 
-    rowrange = round((montage_rect{f}(1,2):montage_rect{f}(3,2))+global_fovea_coords(2)+1);
-    colrange = round((montage_rect{f}(1,1):montage_rect{f}(3,1))+global_fovea_coords(1)+1);
+    rowrange = round((montage_rect{f}(1,2):montage_rect{f}(3,2))+global_fovea_coords(2));
+    colrange = round((montage_rect{f}(1,1):montage_rect{f}(3,1))+global_fovea_coords(1));
     
     if isempty(strfind(fNames{f}, global_eye)) % If it doesn't match our eye, flip the montage data.
         density_map_comb = fliplr(density_map_comb);
@@ -121,13 +121,13 @@ for f=1:length(fNames)
     indiv_temp_strip = mean(fliplr(indiv_shifted_density(global_fovea_coords(2)-strip_radius:global_fovea_coords(2)+strip_radius,...
                                                          global_fovea_coords(1)-strip_length:global_fovea_coords(1))), 1, 'omitnan');
     figure(12);
-    plot(deg_position,avg_temp_strip-indiv_temp_strip);
+    plot(deg_position, avg_temp_strip-indiv_temp_strip);
     drawnow;
 
     figure(13);
     indiv_temp_strip_conf = mean(fliplr(indiv_shifted_confidence(global_fovea_coords(2)-strip_radius:global_fovea_coords(2)+strip_radius,...
                                                          global_fovea_coords(1)-strip_length:global_fovea_coords(1))), 1, 'omitnan');
-    plot(deg_position,avg_temp_strip_conf-indiv_temp_strip_conf);
+    plot(deg_position, avg_temp_strip_conf-indiv_temp_strip_conf);
     drawnow;
 end
 figure(12); hold off;
