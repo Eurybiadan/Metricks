@@ -185,7 +185,7 @@ proghand = waitbar(0,'Processing...');
 for i=1:size(fnamelist,1)
 
     try
-        if ~isdir(i)
+        if ~isdir{i}
 
             
             if length(fnamelist{i})>42

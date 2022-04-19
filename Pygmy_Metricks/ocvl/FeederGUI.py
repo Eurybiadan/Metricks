@@ -23,6 +23,7 @@ from PySide6.QtCore import Qt, Signal, Slot, Property
 class PygmyFeeder(QWizard):
     def __init__(self, parent=None):
         QWizard.__init__(self,parent)
+        self.setWizardStyle(QWizard.ModernStyle)  # added to get the title to be formatted correctly
         self.setWindowTitle("Welcome to OCVL's Metricks Master (Pygmy Python editon)")
         self.addPage(WelcomePage(self))
 
@@ -89,6 +90,9 @@ class WelcomePage(QWizardPage):
         self._coord_path = QFileDialog.getExistingDirectory(parent=self,
                                                            caption="Select the folder containing the coordinates of interest.",
                                                            options=QFileDialog.ShowDirsOnly)
+        # added to display the chosen path
+        if self._coord_path:
+            self.coord_label.setText(self._coord_path)
 
 
     @Slot()
@@ -97,7 +101,9 @@ class WelcomePage(QWizardPage):
         self.image_path = QFileDialog.getExistingDirectory(parent=self,
                                                            caption="Select the folder containing the images of interest.",
                                                            options=QFileDialog.ShowDirsOnly)
-
+        # added to display the chosen path
+        if self.image_path:
+            self.image_label.setText(self.image_path)
 
 
 if __name__ == '__main__':
