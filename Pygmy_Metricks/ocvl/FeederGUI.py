@@ -15,9 +15,11 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import sys
+import sys, time
+
+from PySide6 import QtGui, QtWidgets, QtCore
 from PySide6.QtWidgets import QApplication, QWizard, QWizardPage, QVBoxLayout, QGridLayout, QPushButton, QLabel, \
-                              QLineEdit, QFileDialog
+    QLineEdit, QFileDialog, QListWidget, QAbstractItemView, QProgressBar, QWidget
 from PySide6.QtCore import Qt, Signal, Slot, Property
 
 class PygmyFeeder(QWizard):
@@ -26,6 +28,9 @@ class PygmyFeeder(QWizard):
         self.setWizardStyle(QWizard.ModernStyle)  # added to get the title to be formatted correctly
         self.setWindowTitle("Welcome to OCVL's Metricks Master (Pygmy Python editon)")
         self.addPage(WelcomePage(self))
+        self.addPage(MetricSelectPage(self))  # added the second page in the wizard
+        self.addPage(ResultsSaveLocation(self))  # added the third page in the wizard
+        self.addPage(Calculate(self))  # added the fourth page in the wizard
 
 
 class WelcomePage(QWizardPage):
@@ -71,7 +76,6 @@ class WelcomePage(QWizardPage):
 
         self.setLayout(self.v_layout)
 
-        self.butt_signal
         self.coord_butt.clicked.connect(self.select_coord_path)
         self.image_butt.clicked.connect(self.select_image_path)
 
@@ -104,6 +108,147 @@ class WelcomePage(QWizardPage):
         # added to display the chosen path
         if self.image_path:
             self.image_label.setText(self.image_path)
+
+class MetricSelectPage(QWizardPage):
+    butt_signal = Signal(str)  # Make a signal, pass it
+
+    def __init__(self, parent=None):
+        QWizardPage.__init__(self, parent)
+        self.setTitle("Select metrics to run:")
+        # https://stackoverflow.com/questions/4008649/qlistwidget-and-multiple-selectionllllll
+        # https://www.geeksforgeeks.org/pyqt5-qlistwidget-setting-selection-mode/
+        self.layout = QtWidgets.QVBoxLayout()
+        self.listWidget = QtWidgets.QListWidget()
+        self.listWidget.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        self.listWidget.setGeometry(QtCore.QRect(10, 10, 211, 291))
+
+        numUnboundCells = QtWidgets.QListWidgetItem("Number of Unbound Cells")
+        numBoundCells = QtWidgets.QListWidgetItem("Number of Bound Cells")
+        totalArea = QtWidgets.QListWidgetItem("Total Area")
+        totalBoundedArea = QtWidgets.QListWidgetItem("Total Bounded Area")
+        meanVorArea = QtWidgets.QListWidgetItem("Mean Voronoi Area")
+        perc6SidesVor = QtWidgets.QListWidgetItem("Percent Six-Sided Voronoi")
+        densityUn = QtWidgets.QListWidgetItem("Density (Uncorrected)")
+        densityCor = QtWidgets.QListWidgetItem("Density (Corrected)")
+        nndUn = QtWidgets.QListWidgetItem("Nearest Neighbor Distance (Uncorrected)")
+        nndCor = QtWidgets.QListWidgetItem("Nearest Neighbor Distance (Corrected)")
+        icdUn = QtWidgets.QListWidgetItem("Inter-Cell Distance (Uncorrected)")
+        icdCor = QtWidgets.QListWidgetItem("Inter-Cell Distance (Corrected)")
+        fndUn = QtWidgets.QListWidgetItem("Furthest Neighbor Distance (Uncorrected)")
+        fndCor = QtWidgets.QListWidgetItem("Furthest Neighbor Distance (Corrected)")
+        densityRecProDist = QtWidgets.QListWidgetItem("Density Recovery Profile Distance")
+        vorAreaRegIndex = QtWidgets.QListWidgetItem("Voronoi Area Regularity Index")
+        vorNumSidesRegIndex = QtWidgets.QListWidgetItem("Voronoi Number of Sides Regularity Index")
+        nnRegIndex = QtWidgets.QListWidgetItem("Nearest Neighbor Regularity Index")
+        icrIndex = QtWidgets.QListWidgetItem("Inter-Cell Regularity Index")
+
+        self.listWidget.addItem(numUnboundCells)
+        self.listWidget.addItem(numBoundCells)
+        self.listWidget.addItem(totalArea)
+        self.listWidget.addItem(totalBoundedArea)
+        self.listWidget.addItem(meanVorArea)
+        self.listWidget.addItem(perc6SidesVor)
+        self.listWidget.addItem(densityUn)
+        self.listWidget.addItem(densityCor)
+        self.listWidget.addItem(nndUn)
+        self.listWidget.addItem(nndCor)
+        self.listWidget.addItem(icdUn)
+        self.listWidget.addItem(icdCor)
+        self.listWidget.addItem(fndUn)
+        self.listWidget.addItem(fndCor)
+        self.listWidget.addItem(densityRecProDist)
+        self.listWidget.addItem(vorAreaRegIndex)
+        self.listWidget.addItem(vorNumSidesRegIndex)
+        self.listWidget.addItem(nnRegIndex)
+        self.listWidget.addItem(icrIndex)
+
+        self.listWidget.itemClicked.connect(self.printItemText)
+        self.layout.addWidget(self.listWidget)
+        self.setLayout(self.layout)
+
+    def printItemText(self):
+        items = self.listWidget.selectedItems()
+        x = []
+        for i in range(len(items)):
+            x.append(str(self.listWidget.selectedItems()[i].text()))
+
+        print(x)
+
+class ResultsSaveLocation(QWizardPage):
+    butt_signal = Signal(str)  # Make a signal, pass it
+
+    def __init__(self, parent=None):
+        QWizardPage.__init__(self, parent)
+        self.setTitle("Select file location to save results to:")
+
+        self.save_path = ""
+
+        self.file_dir_form = QGridLayout()
+
+        self.save_path_label = QLineEdit()
+        self.save_path_label.setReadOnly(True)
+        self.save_path_label.text()
+        self.save_path_butt = QPushButton("Select...")
+
+        self.file_dir_form.addWidget(self.save_path_label, 0, 0)
+        self.file_dir_form.addWidget(self.save_path_butt, 0, 1)
+
+        self.v_layout = QVBoxLayout()
+        self.v_layout.setSpacing(32)
+        self.v_layout.addLayout(self.file_dir_form)
+
+        self.file_dir_form.setSpacing(4)
+
+        self.setLayout(self.v_layout)
+
+        self.save_path_butt.clicked.connect(self.select_save_path)
+
+
+
+    @Slot()
+    def select_save_path(self):
+        self.save_path = QFileDialog.getExistingDirectory(parent=self,
+                                                           caption="Specify file location to save results to.",
+                                                           options=QFileDialog.ShowDirsOnly)
+        # added to display the chosen path
+        if self.save_path:
+            self.save_path_label.setText(self.save_path)
+
+
+class Calculate(QWizardPage):
+    butt_signal = Signal(str)  # Make a signal, pass it
+
+    def __init__(self, parent=None):
+        QWizardPage.__init__(self, parent)
+        self.setTitle("Calculate Metrics:")
+
+        self.file_dir_form = QGridLayout()
+
+        # https://www.google.com/search?q=qprogressbar&rlz=1C1GCEU_enUS949US949&oq=Qprogress&aqs=chrome.0.0i67j69i57j0i67l5j0i512l3.2106j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_YBpgYvOqLpXV9AOB2bqgDQ11
+        n = 500  #steps for progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(n)
+
+        self.start_butt = QPushButton("Start")
+        self.file_dir_form.addWidget(self.progress_bar, 0, 0)
+        self.file_dir_form.addWidget(self.start_butt, 0, 1)
+
+        self.v_layout = QVBoxLayout()
+        self.v_layout.setSpacing(32)
+        self.v_layout.addLayout(self.file_dir_form)
+
+        self.file_dir_form.setSpacing(4)
+
+        self.setLayout(self.v_layout)
+        # https://stackoverflow.com/questions/6784084/how-to-pass-arguments-to-functions-by-the-click-of-button-in-pyqt
+        self.start_butt.clicked.connect(lambda: self.start(n))
+
+    @Slot()
+    def start(self, n):
+        for i in range(n):
+            time.sleep(0.01)
+            self.progress_bar.setValue(i+1)
 
 
 if __name__ == '__main__':
