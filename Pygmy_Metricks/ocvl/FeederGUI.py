@@ -29,8 +29,9 @@ class PygmyFeeder(QWizard):
         self.setWindowTitle("Welcome to OCVL's Metricks Master (Pygmy Python editon)")
         self.addPage(WelcomePage(self))
         self.addPage(MetricSelectPage(self))  # added the second page in the wizard
-        self.addPage(ResultsSaveLocation(self))  # added the third page in the wizard
-        self.addPage(Calculate(self))  # added the fourth page in the wizard
+        self.addPage(UnitSelect(self))  # added the third page in the wizard
+        self.addPage(ResultsSaveLocation(self))  # added the fourth page in the wizard
+        self.addPage(Calculate(self))  # added the fifth page in the wizard
 
 
 class WelcomePage(QWizardPage):
@@ -161,6 +162,38 @@ class MetricSelectPage(QWizardPage):
         self.listWidget.addItem(vorNumSidesRegIndex)
         self.listWidget.addItem(nnRegIndex)
         self.listWidget.addItem(icrIndex)
+
+        self.listWidget.itemClicked.connect(self.printItemText)
+        self.layout.addWidget(self.listWidget)
+        self.setLayout(self.layout)
+
+    def printItemText(self):
+        items = self.listWidget.selectedItems()
+        x = []
+        for i in range(len(items)):
+            x.append(str(self.listWidget.selectedItems()[i].text()))
+
+        print(x)
+
+class UnitSelect(QWizardPage):
+    butt_signal = Signal(str)  # Make a signal, pass it
+
+    def __init__(self, parent=None):
+        QWizardPage.__init__(self, parent)
+        self.setTitle("Select units:")
+
+        self.layout = QtWidgets.QVBoxLayout()
+        self.listWidget = QtWidgets.QListWidget()
+        self.listWidget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.listWidget.setGeometry(QtCore.QRect(10, 10, 211, 291))
+
+        microns = QtWidgets.QListWidgetItem("Microns (mm density)")
+        degrees = QtWidgets.QListWidgetItem("Degrees")
+        arcmin = QtWidgets.QListWidgetItem("Arcmin")
+
+        self.listWidget.addItem(microns)
+        self.listWidget.addItem(degrees)
+        self.listWidget.addItem(arcmin)
 
         self.listWidget.itemClicked.connect(self.printItemText)
         self.layout.addWidget(self.listWidget)
