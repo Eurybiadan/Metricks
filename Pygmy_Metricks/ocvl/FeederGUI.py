@@ -22,6 +22,9 @@ from PySide6.QtWidgets import QApplication, QWizard, QWizardPage, QVBoxLayout, Q
     QLineEdit, QFileDialog, QListWidget, QAbstractItemView, QProgressBar, QWidget
 from PySide6.QtCore import Qt, Signal, Slot, Property
 
+
+
+
 class PygmyFeeder(QWizard):
     def __init__(self, parent=None):
         QWizard.__init__(self,parent)
@@ -40,6 +43,9 @@ class WelcomePage(QWizardPage):
 
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
+        from Mosaic_Metrics import PygmyMetricks
+        self.MMref = PygmyMetricks()
+
         self.setTitle("Select the data source(s) to analyze:")
 
         self.label = QLabel("<b>Images are not required.</b><br> However, if they"+
@@ -99,7 +105,7 @@ class WelcomePage(QWizardPage):
         # added to display the chosen path
         if self._coord_path:
             self.coord_label.setText(self._coord_path)
-
+            self.MMref.readFolderContents(self._coord_path, 'csv')
 
     @Slot()
     def select_image_path(self):
@@ -116,6 +122,8 @@ class MetricSelectPage(QWizardPage):
 
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
+        from Mosaic_Metrics import PygmyMetricks
+        self.MMref = PygmyMetricks()
         self.setTitle("Select metrics to run:")
         # https://stackoverflow.com/questions/4008649/qlistwidget-and-multiple-selectionllllll
         # https://www.geeksforgeeks.org/pyqt5-qlistwidget-setting-selection-mode/
@@ -181,6 +189,8 @@ class UnitSelect(QWizardPage):
 
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
+        from Mosaic_Metrics import PygmyMetricks
+        self.MMref = PygmyMetricks()
         self.setTitle("Select units:")
 
         self.layout = QtWidgets.QVBoxLayout()
@@ -196,17 +206,9 @@ class UnitSelect(QWizardPage):
         self.listWidget.addItem(degrees)
         self.listWidget.addItem(arcmin)
 
-        self.listWidget.itemClicked.connect(self.printItemText)
+        self.listWidget.itemClicked.connect(lambda: self.MMref.selectUnit(str(self.listWidget.selectedItems()[0].text())))
         self.layout.addWidget(self.listWidget)
         self.setLayout(self.layout)
-
-    def printItemText(self):
-        items = self.listWidget.selectedItems()
-        x = []
-        for i in range(len(items)):
-            x.append(str(self.listWidget.selectedItems()[i].text()))
-
-        print(x)
 
 class SetScale(QWizardPage):
     butt_signal = Signal(str)  # Make a signal, pass it

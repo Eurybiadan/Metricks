@@ -13,7 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import os
 import sys
 import importlib.resources as pkg_resources
 from pint import UnitRegistry
@@ -27,6 +27,22 @@ from ocvl.FeederGUI import PygmyFeeder
 class PygmyMetricks():
     def __init__(self):
         super().__init__()
+
+    # adapted from read_folder_contents.m
+    def readFolderContents(self, directoryName, extension):
+        x=1
+        self.fileList = []
+        for file in os.listdir(directoryName):
+            if file.endswith(extension):
+                self.fileList.append(os.path.join(directoryName, file))
+        self.numOfFiles = len(self.fileList)
+
+    def selectUnit(self, unit):
+        self.selectedUnit = unit
+        print(unit)
+
+
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
