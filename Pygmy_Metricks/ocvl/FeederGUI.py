@@ -30,8 +30,9 @@ class PygmyFeeder(QWizard):
         self.addPage(WelcomePage(self))
         self.addPage(MetricSelectPage(self))  # added the second page in the wizard
         self.addPage(UnitSelect(self))  # added the third page in the wizard
-        self.addPage(ResultsSaveLocation(self))  # added the fourth page in the wizard
-        self.addPage(Calculate(self))  # added the fifth page in the wizard
+        self.addPage(SetScale(self))  # added the fourth page in the wizard
+        self.addPage(ResultsSaveLocation(self))  # added the fifth page in the wizard
+        self.addPage(Calculate(self))  # added the sixth page in the wizard
 
 
 class WelcomePage(QWizardPage):
@@ -206,6 +207,62 @@ class UnitSelect(QWizardPage):
             x.append(str(self.listWidget.selectedItems()[i].text()))
 
         print(x)
+
+class SetScale(QWizardPage):
+    butt_signal = Signal(str)  # Make a signal, pass it
+
+    def __init__(self, parent=None):
+        QWizardPage.__init__(self, parent)
+        self.setTitle("Select LUT file or enter scale manually:")
+
+        self.LUT_file = ""
+
+        self.file_dir_form = QGridLayout()
+
+        self.LUT_label = QLineEdit()
+        self.LUT_label.setReadOnly(True)
+        self.LUT_label.text()
+        self.LUT_file_butt = QPushButton("Select LUT File")
+        self.manualScale_butt = QPushButton("Set Scale")
+
+        self.manualScale = QLineEdit()
+
+        self.file_dir_form.addWidget(self.LUT_label, 0, 0)
+        self.file_dir_form.addWidget(self.LUT_file_butt, 0, 1)
+
+        self.label = QLabel("<b>OR</b><br> Enter scale (UNITS/PIXEL) manually and click 'Set Scale' button")
+        self.file_dir_form.addWidget(self.label)
+        self.label.setWordWrap(True)
+        self.label.setTextFormat(Qt.RichText)
+        self.label.setAlignment(Qt.AlignCenter)
+
+        self.file_dir_form.addWidget(self.manualScale, 2, 0)
+        self.file_dir_form.addWidget(self.manualScale_butt, 2, 1)
+
+        self.v_layout = QVBoxLayout()
+        self.v_layout.setSpacing(32)
+        self.v_layout.addLayout(self.file_dir_form)
+        self.file_dir_form.setSpacing(4)
+
+        self.setLayout(self.v_layout)
+
+        self.LUT_file_butt.clicked.connect(self.select_LUT_file)
+        self.manualScale_butt.clicked.connect(self.printScale)
+
+
+    @Slot()
+    def select_LUT_file(self):
+        # https://doc.qt.io/qt-5/qfiledialog.html#details
+        self.LUT_file = QFileDialog.getOpenFileName(parent=self,
+                                                          caption="Specify file location to save results to.",
+                                                          options=QFileDialog.ShowDirsOnly)
+        # added to display the chosen path
+        if self.LUT_file:
+            self.LUT_label.setText(self.LUT_file[0])
+
+    def printScale(self):
+        print(self.manualScale.text())
+
 
 class ResultsSaveLocation(QWizardPage):
     butt_signal = Signal(str)  # Make a signal, pass it
