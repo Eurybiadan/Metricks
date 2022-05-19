@@ -22,7 +22,8 @@ from PySide6.QtWidgets import QApplication, QWizard, QWizardPage, QVBoxLayout, Q
     QLineEdit, QFileDialog, QListWidget, QAbstractItemView, QProgressBar, QWidget
 from PySide6.QtCore import Qt, Signal, Slot, Property
 
-
+from Metrics import Metricks
+metRef = Metricks()
 
 
 class PygmyFeeder(QWizard):
@@ -31,9 +32,9 @@ class PygmyFeeder(QWizard):
         self.setWizardStyle(QWizard.ModernStyle)  # added to get the title to be formatted correctly
         self.setWindowTitle("Welcome to OCVL's Metricks Master (Pygmy Python editon)")
         self.addPage(WelcomePage(self))
-        self.addPage(MetricSelectPage(self))  # added the second page in the wizard
-        self.addPage(UnitSelect(self))  # added the third page in the wizard
         self.addPage(SetScale(self))  # added the fourth page in the wizard
+        self.addPage(UnitSelect(self))  # added the third page in the wizard
+        self.addPage(MetricSelectPage(self))  # added the second page in the wizard
         self.addPage(ResultsSaveLocation(self))  # added the fifth page in the wizard
         self.addPage(Calculate(self))  # added the sixth page in the wizard
 
@@ -43,8 +44,7 @@ class WelcomePage(QWizardPage):
 
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
-        from Mosaic_Metrics import PygmyMetricks
-        self.MMref = PygmyMetricks()
+
 
         self.setTitle("Select the data source(s) to analyze:")
 
@@ -105,7 +105,7 @@ class WelcomePage(QWizardPage):
         # added to display the chosen path
         if self._coord_path:
             self.coord_label.setText(self._coord_path)
-            self.MMref.readFolderContents(self._coord_path, 'csv')
+            metRef.readFolderContents(self._coord_path, 'csv')
 
     @Slot()
     def select_image_path(self):
@@ -122,8 +122,6 @@ class MetricSelectPage(QWizardPage):
 
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
-        from Mosaic_Metrics import PygmyMetricks
-        self.MMref = PygmyMetricks()
         self.setTitle("Select metrics to run:")
         # https://stackoverflow.com/questions/4008649/qlistwidget-and-multiple-selectionllllll
         # https://www.geeksforgeeks.org/pyqt5-qlistwidget-setting-selection-mode/
@@ -189,8 +187,6 @@ class UnitSelect(QWizardPage):
 
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
-        from Mosaic_Metrics import PygmyMetricks
-        self.MMref = PygmyMetricks()
         self.setTitle("Select units:")
 
         self.layout = QtWidgets.QVBoxLayout()
@@ -206,7 +202,7 @@ class UnitSelect(QWizardPage):
         self.listWidget.addItem(degrees)
         self.listWidget.addItem(arcmin)
 
-        self.listWidget.itemClicked.connect(lambda: self.MMref.selectUnit(str(self.listWidget.selectedItems()[0].text())))
+        self.listWidget.itemClicked.connect(lambda: metRef.selectUnit(str(self.listWidget.selectedItems()[0].text())))
         self.layout.addWidget(self.listWidget)
         self.setLayout(self.layout)
 
@@ -249,18 +245,20 @@ class SetScale(QWizardPage):
         self.setLayout(self.v_layout)
 
         self.LUT_file_butt.clicked.connect(self.select_LUT_file)
-        self.manualScale_butt.clicked.connect(self.printScale)
+        self.manualScale_butt.clicked.connect(metRef.scaleInput(self.manualScale))
 
 
     @Slot()
     def select_LUT_file(self):
         # https://doc.qt.io/qt-5/qfiledialog.html#details
         self.LUT_file = QFileDialog.getOpenFileName(parent=self,
-                                                          caption="Specify file location to save results to.",
+                                                          caption="Select LUT file for scaling:",
                                                           options=QFileDialog.ShowDirsOnly)
         # added to display the chosen path
         if self.LUT_file:
             self.LUT_label.setText(self.LUT_file[0])
+            metRef.loadLutFile(self.LUT_file)
+
 
     def printScale(self):
         print(self.manualScale.text())
@@ -271,7 +269,7 @@ class ResultsSaveLocation(QWizardPage):
 
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
-        self.setTitle("Select file location to save results to:")
+        self.setTitle("Specify file location to save results to:")
 
         self.save_path = ""
 
@@ -317,10 +315,10 @@ class Calculate(QWizardPage):
         self.file_dir_form = QGridLayout()
 
         # https://www.google.com/search?q=qprogressbar&rlz=1C1GCEU_enUS949US949&oq=Qprogress&aqs=chrome.0.0i67j69i57j0i67l5j0i512l3.2106j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_YBpgYvOqLpXV9AOB2bqgDQ11
-        n = 500  #steps for progress bar
+        # self.n = 500  #steps for progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setMinimum(0)
-        self.progress_bar.setMaximum(n)
+        # self.progress_bar.setMaximum(self.n)
 
         self.start_butt = QPushButton("Start")
         self.file_dir_form.addWidget(self.progress_bar, 0, 0)
@@ -334,10 +332,11 @@ class Calculate(QWizardPage):
 
         self.setLayout(self.v_layout)
         # https://stackoverflow.com/questions/6784084/how-to-pass-arguments-to-functions-by-the-click-of-button-in-pyqt
-        self.start_butt.clicked.connect(lambda: self.start(n))
+        self.start_butt.clicked.connect(lambda: self.start(self.n))  # self.n gets set to the number of files in Metrics.py readFolderContents
 
     @Slot()
     def start(self, n):
+        self.progress_bar.setMaximum(n)
         for i in range(n):
             time.sleep(0.01)
             self.progress_bar.setValue(i+1)
