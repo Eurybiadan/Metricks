@@ -15,6 +15,13 @@
 #
 
 import os
+from os.path import exists
+from warnings import warn
+
+import cv2
+import numpy
+from PIL import Image
+
 import ocvl.FeederGUI
 import csv
 import pandas
@@ -25,6 +32,7 @@ class Metricks():
 
     # adapted from read_folder_contents.m
     def readFolderContents(self, directoryName, extension):
+        self.directoryName = directoryName
         x=1
         self.fileList = []
         for file in os.listdir(directoryName):
@@ -70,3 +78,18 @@ class Metricks():
         if self.selectedUnit == 'Arcmin':
             self.scaleval = 60/self.pixelsPerDegree
 
+    def runMetricks(self, i):
+        self.coords = pandas.read_csv(self.fileList[i])
+        # https://note.nkmk.me/en/python-pandas-len-shape-size/
+        if len(self.coords.columns) != 2:
+            # https://docs.python.org/3/library/warnings.html
+            warn("Coordinate list contains more than 2 columns! Skipping...")
+            return
+        self.matchingName = self.fileList[i].split("_coords.csv")
+        self.imageFilePath = self.matchingName[0] + '.tif'
+        if exists(self.imageFilePath):
+            self.image = Image.open(self.imageFilePath, 'r')
+            self.imageValues = numpy.array(self.image)
+            self.imageValues = pandas.DataFrame(self.imageValues)
+            # self.width = len(self.image, 2)
+            # self.height = len(self.image, 1)

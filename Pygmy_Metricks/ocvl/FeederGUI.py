@@ -340,7 +340,7 @@ class Calculate(QWizardPage):
     def start(self, n):
         self.progress_bar.setMaximum(n)
         for i in range(n):
-            time.sleep(0.01)
+            metRef.runMetricks(i)
             self.progress_bar.setValue(i+1)
 
 
