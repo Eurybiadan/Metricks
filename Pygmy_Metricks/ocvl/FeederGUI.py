@@ -16,6 +16,7 @@
 #
 
 import sys, time
+from warnings import warn
 
 from PySide6 import QtGui, QtWidgets, QtCore
 from PySide6.QtWidgets import QApplication, QWizard, QWizardPage, QVBoxLayout, QGridLayout, QPushButton, QLabel, \
@@ -339,8 +340,11 @@ class Calculate(QWizardPage):
     @Slot()
     def start(self, n):
         self.progress_bar.setMaximum(n)
+        self.windowSize = []
+        if len(self.windowSize) > 1:
+            warn("Window size can only be empty ([]), or a single value!")
         for i in range(n):
-            metRef.runMetricks(i)
+            metRef.runMetricks(i, self.windowSize)
             self.progress_bar.setValue(i+1)
 
 

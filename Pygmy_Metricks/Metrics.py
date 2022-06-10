@@ -78,8 +78,8 @@ class Metricks():
         if self.selectedUnit == 'Arcmin':
             self.scaleval = 60/self.pixelsPerDegree
 
-    def runMetricks(self, i):
-        self.coords = pandas.read_csv(self.fileList[i])
+    def runMetricks(self, i, windowSize):
+        self.coords = pandas.read_csv(self.fileList[i], header=None)
         # https://note.nkmk.me/en/python-pandas-len-shape-size/
         if len(self.coords.columns) != 2:
             # https://docs.python.org/3/library/warnings.html
@@ -87,9 +87,60 @@ class Metricks():
             return
         self.matchingName = self.fileList[i].split("_coords.csv")
         self.imageFilePath = self.matchingName[0] + '.tif'
+
         if exists(self.imageFilePath):
             self.image = Image.open(self.imageFilePath, 'r')
             self.imageValues = numpy.array(self.image)
             self.imageValues = pandas.DataFrame(self.imageValues)
-            # self.width = len(self.image, 2)
-            # self.height = len(self.image, 1)
+            self.width = len(self.imageValues.columns)
+            self.height = len(self.imageValues)
+            print(len(windowSize))
+
+            if len(windowSize) != 0:
+                self.pixelWindowSze = windowSize/self.scaleval
+                self.diffWidth = (self.width-self.pixelWindowSze)/2
+                self.diffHeight = (self.height-self.pixelWindowSze)/2
+
+                if self.diffWidth < 0:
+                    self.diffWidth = 0
+                if self.diffHeight < 0:
+                    self.diffHeight = 0
+            else:
+                self.pixelWindowSze = [self.height, self.width]
+                self.diffWidth = 0
+                self.diffHeight = 0
+
+            # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # self.clippedCoords = coordclip
+            # HERE JG 6/10/22
+            self.clipStartEnd = [self.diffWidth, self.width-self.diffWidth, self.diffHeight, self.height-self.diffHeight]
+
+
+        else:
+            self.width = max(self.coords.iloc[:, 0]) - min(self.coords.iloc[:, 0])
+            self.height = max(self.coords.iloc[:, 1]) - min(self.coords.iloc[:, 1])
+            print("hi")
+
+            if len(windowSize) != 0:
+                self.pixelWindowSze = windowSize/self.scaleval
+                self.diffWidth = (self.width-self.pixelWindowSze)/2
+                self.diffHeight = (self.height-self.pixelWindowSze)/2
+            else:
+                self.pixelWindowSze = [self.height, self.width]
+                self.diffWidth = 0
+                self.diffHeight = 0
+
+            # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # self.clippedCoords = coordclip()
+            # HERE JG 6/10/22
+            self.clipStartEnd = [min(self.coords.iloc[:, 0]) + self.diffWidth - 0.01,
+                                 max(self.coords.iloc[:, 0]) - self.diffWidth + 0.01,
+                                 min(self.coords.iloc[:, 1]) + self.diffHeight - 0.01,
+                                 max(self.coords.iloc[:, 1]) - self.diffHeight + 0.01]
+
+        # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # self.statistics = determineMosaicStats()
+        # HERE JG 6/10/22
+
+
+
