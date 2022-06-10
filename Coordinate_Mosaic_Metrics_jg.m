@@ -200,6 +200,7 @@ for i=1:size(fnamelist,1)
                 LUTindex=find( cellfun(@(s) ~isempty(strfind(fnamelist{i},s )), lutData{1} ) ); %finds locations in lutData{1} that have matching IDs or eyes as the file names
 
                 % JG addition/bug fix 5/24/2022
+                % find the index for the file that matches id and eye info
                 for x=1:length(LUTindex)
                     val = LUTindex(x+1) - LUTindex(x);
                     if val == 1
@@ -208,6 +209,9 @@ for i=1:size(fnamelist,1)
                     end
                 end
                 
+                % bug in section below where if there are two eyes with the
+                % same id it will always chose whichever file is first even
+                % if it is the incorrect eye - JG commented out 5/24/22
                 
 %                 % Use whichever scale is most similar to our filename.
 %                 sim = 1000*ones(length(LUTindex),1);

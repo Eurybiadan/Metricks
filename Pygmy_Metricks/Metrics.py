@@ -46,8 +46,8 @@ class Metricks():
             index = self.LUT.all(axis=1)
             for j in range(len(index)):
                 if self.LUT["idMatch"][j] == True:
-                    self.LUT["EyeMatch"] = self.LUT[3].str.contains(i[3], regex=True)
-                    if self.LUT["EyeMatch"][j] == True:
+                    self.LUT["eyeMatch"] = self.LUT[3].str.contains(i[3], regex=True)
+                    if self.LUT["eyeMatch"][j] == True:
                         self.LUTindex = j
                         break
             break  # not sure if this can really go here for all scenarios

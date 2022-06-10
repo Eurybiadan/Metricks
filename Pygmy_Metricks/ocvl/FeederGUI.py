@@ -45,7 +45,6 @@ class WelcomePage(QWizardPage):
     def __init__(self, parent=None):
         QWizardPage.__init__(self, parent)
 
-
         self.setTitle("Select the data source(s) to analyze:")
 
         self.label = QLabel("<b>Images are not required.</b><br> However, if they"+
@@ -75,6 +74,10 @@ class WelcomePage(QWizardPage):
         self.file_dir_form.addWidget(self.image_label, 1, 0)
         self.file_dir_form.addWidget(self.image_butt, 1, 1)
 
+        # https://doc.qt.io/archives/qq/qq22-qwizard.html#validatebeforeitstoolate
+        self.registerField("coordpath*",
+                           self.coord_label)  # this makes the coord path manditory to enable the next button
+
         self.v_layout = QVBoxLayout()
         self.v_layout.setSpacing(32)
         self.v_layout.addWidget(self.label)
@@ -86,7 +89,6 @@ class WelcomePage(QWizardPage):
 
         self.coord_butt.clicked.connect(self.select_coord_path)
         self.image_butt.clicked.connect(self.select_image_path)
-
 
 
     def readCoordPath(self):
