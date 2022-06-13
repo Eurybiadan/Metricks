@@ -119,7 +119,6 @@ class Metricks():
         else:
             self.width = max(self.coords.iloc[:, 0]) - min(self.coords.iloc[:, 0])
             self.height = max(self.coords.iloc[:, 1]) - min(self.coords.iloc[:, 1])
-            print("hi")
 
             if len(windowSize) != 0:
                 self.pixelWindowSze = windowSize/self.scaleval
@@ -149,23 +148,41 @@ class Metricks():
         imsizerow = max(coords.iloc[:, 1])
 
         # making threshold variables
-        minYthresh = thresholdy(0)
-        maxYthresh = thresholdy(1)
-        minXthresh = thresholdx(0)
-        maxXthresh = thresholdx(1)
+        minYthresh = thresholdy[0]
+        maxYthresh = thresholdy[1]
+        minXthresh = thresholdx[0]
+        maxXthresh = thresholdx[1]
 
         if inoutorxor == 'i':
-            clippedCoords = coords.iloc[(coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) &
-                                        (coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh), :]
+            boolKey = ((coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) & (coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh))
+            clippedCoords = coords
+            for i in range(len(coords)):
+                if boolKey[i] != True:
+                    clippedCoords = clippedCoords.drop(index=i)
+
         elif inoutorxor == 'o':
-            clippedCoords = coords.iloc[(coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
-                                        (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh), :]
+            boolKey = ((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
+                       (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
+            clippedCoords = coords
+            for i in range(len(coords)):
+                if boolKey[i] != True:
+                    clippedCoords = clippedCoords.drop(index=i)
+
         elif inoutorxor == 'xor':
-            clippedCoords = coords.iloc[xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
-                                        (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)), :]
+            boolKey = xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
+                          (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
+            clippedCoords = coords
+            for i in range(len(coords)):
+                if boolKey[i] != True:
+                    clippedCoords = clippedCoords.drop(index=i)
+
         elif inoutorxor == 'and':
-            clippedCoords = coords.iloc[((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh)) &
-                                        ((coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)), :]
+            boolKey = (((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh)) &
+                       ((coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)))
+            clippedCoords = coords
+            for i in range(len(coords)):
+                if boolKey[i] != True:
+                    clippedCoords = clippedCoords.drop(index=i)
 
         return clippedCoords
 
