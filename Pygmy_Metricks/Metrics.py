@@ -15,6 +15,7 @@
 #
 
 import os
+from operator import xor
 from os.path import exists
 from warnings import warn
 
@@ -91,6 +92,7 @@ class Metricks():
         if exists(self.imageFilePath):
             self.image = Image.open(self.imageFilePath, 'r')
             self.imageValues = numpy.array(self.image)
+            # https://datatofish.com/numpy-array-to-pandas-dataframe/
             self.imageValues = pandas.DataFrame(self.imageValues)
             self.width = len(self.imageValues.columns)
             self.height = len(self.imageValues)
@@ -110,9 +112,7 @@ class Metricks():
                 self.diffWidth = 0
                 self.diffHeight = 0
 
-            # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # self.clippedCoords = coordclip
-            # HERE JG 6/10/22
+            self.clippedCoords = self.coordClip(self.coords, [self.diffWidth, self.width-self.diffWidth], [self.diffHeight, self.height-self.diffHeight], 'i')
             self.clipStartEnd = [self.diffWidth, self.width-self.diffWidth, self.diffHeight, self.height-self.diffHeight]
 
 
@@ -130,8 +130,10 @@ class Metricks():
                 self.diffWidth = 0
                 self.diffHeight = 0
 
-            # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # self.clippedCoords = coordclip()
+            self.clippedCoords = self.coordClip(self.coords, [min(self.coords.iloc[:, 0]) - 0.01 + self.diffWidth,
+                                                              max(self.coords.iloc[:, 0]) - self.diffWidth + 0.01],
+                                                             [min(self.coords.iloc[:, 1]) + self.diffHeight - 0.01,
+                                                              max(self.coords.iloc[:, 1]) - self.diffHeight + 0.01], 'i')
             # HERE JG 6/10/22
             self.clipStartEnd = [min(self.coords.iloc[:, 0]) + self.diffWidth - 0.01,
                                  max(self.coords.iloc[:, 0]) - self.diffWidth + 0.01,
@@ -141,6 +143,30 @@ class Metricks():
         # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # self.statistics = determineMosaicStats()
         # HERE JG 6/10/22
+    def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
+        # determine max image size - assumes there are border coordinates
+        imsizecol = max(coords.iloc[:, 0])
+        imsizerow = max(coords.iloc[:, 1])
 
+        # making threshold variables
+        minYthresh = thresholdy(0)
+        maxYthresh = thresholdy(1)
+        minXthresh = thresholdx(0)
+        maxXthresh = thresholdx(1)
+
+        if inoutorxor == 'i':
+            clippedCoords = coords.iloc[(coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) &
+                                        (coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh), :]
+        elif inoutorxor == 'o':
+            clippedCoords = coords.iloc[(coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
+                                        (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh), :]
+        elif inoutorxor == 'xor':
+            clippedCoords = coords.iloc[xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
+                                        (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)), :]
+        elif inoutorxor == 'and':
+            clippedCoords = coords.iloc[((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh)) &
+                                        ((coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)), :]
+
+        return clippedCoords
 
 
