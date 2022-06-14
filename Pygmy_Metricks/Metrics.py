@@ -22,10 +22,13 @@ from warnings import warn
 import cv2
 import numpy
 from PIL import Image
+from numpy import mean, std, matlib
 
 import ocvl.FeederGUI
 import csv
 import pandas
+from scipy.spatial.distance import squareform, pdist
+
 
 class Metricks():
     def __init__(self):
@@ -140,7 +143,7 @@ class Metricks():
                                  max(self.coords.iloc[:, 1]) - self.diffHeight + 0.01]
 
         # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # self.statistics = determineMosaicStats()
+        self.statistics = self.determineMosaicStats(self.clippedCoords, self.scaleval, self.selectedUnit, self.clipStartEnd, [self.pixelWindowSze, self.pixelWindowSze], 4)
         # HERE JG 6/10/22
     def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
         # determine max image size - assumes there are border coordinates
@@ -177,9 +180,33 @@ class Metricks():
             return None
 
         for i in range(len(coords)):
-            if boolKey[i] != True:
+            if not boolKey[i]:
                 clippedCoords = clippedCoords.drop(index=i)  # delete the row from the coordinate list if it was false from the boolean key
 
         return clippedCoords
+
+    def determineMosaicStats(self, coords, scale, unit, bounds, clippedRowCol, reliability):
+        # This function takes in a list of coordinates in a m-2 matrix and calculates metrics
+        # calculates the mean nearest neighbor, cell area created by the coordinates, and calculates the density of the coordinates
+        # Coords are in X,Y
+
+        # Determine Mean N-N
+        # Measure the distance from each set of points to the other
+        # https://stackoverflow.com/questions/32946241/scipy-pdist-on-a-pandas-dataframe
+        distBetweenPts = pdist(coords, 'euclidean')
+        squareform(distBetweenPts)
+        distBetweenPts = pandas.DataFrame(squareform(distBetweenPts), index=coords.index, columns=coords.index)
+        # distBetweenPts.to_excel("C:\\Users\\6794grieshj\\Documents\\help.xlsx")
+
+        maxDist = max(distBetweenPts.max())
+        maxIdent = numpy.eye(len(distBetweenPts)) * maxDist
+
+        ##
+
+        # [minval, minind] = min(distBetweenPts + maxIdent)
+        # meanNNDist = mean(minval * scale)
+        # regularityNNIndex = meanNNDist/std(minval*scale)
+
+
 
 
