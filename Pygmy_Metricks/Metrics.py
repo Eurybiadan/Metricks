@@ -153,36 +153,32 @@ class Metricks():
         minXthresh = thresholdx[0]
         maxXthresh = thresholdx[1]
 
+        clippedCoords = coords
+
         if inoutorxor == 'i':
+            # ensures that all coordinates are inside the box. - In accordance with notebook decision
             boolKey = ((coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) & (coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh))
-            clippedCoords = coords
-            for i in range(len(coords)):
-                if boolKey[i] != True:
-                    clippedCoords = clippedCoords.drop(index=i)
 
         elif inoutorxor == 'o':
             boolKey = ((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
                        (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
-            clippedCoords = coords
-            for i in range(len(coords)):
-                if boolKey[i] != True:
-                    clippedCoords = clippedCoords.drop(index=i)
 
         elif inoutorxor == 'xor':
+            # Check rows coordinates for includable entries - in accordance with notebook decision
             boolKey = xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
                           (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
-            clippedCoords = coords
-            for i in range(len(coords)):
-                if boolKey[i] != True:
-                    clippedCoords = clippedCoords.drop(index=i)
 
         elif inoutorxor == 'and':
+            # Check rows coordinates for includable entries - in accordance with notebook decision
             boolKey = (((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh)) &
                        ((coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)))
-            clippedCoords = coords
-            for i in range(len(coords)):
-                if boolKey[i] != True:
-                    clippedCoords = clippedCoords.drop(index=i)
+
+        else:
+            return None
+
+        for i in range(len(coords)):
+            if boolKey[i] != True:
+                clippedCoords = clippedCoords.drop(index=i)  # delete the row from the coordinate list if it was false from the boolean key
 
         return clippedCoords
 
