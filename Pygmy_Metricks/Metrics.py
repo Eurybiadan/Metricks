@@ -195,17 +195,24 @@ class Metricks():
         # https://stackoverflow.com/questions/32946241/scipy-pdist-on-a-pandas-dataframe
         distBetweenPts = pdist(coords, 'euclidean')
         squareform(distBetweenPts)
-        distBetweenPts = pandas.DataFrame(squareform(distBetweenPts), index=coords.index, columns=coords.index)
-        # distBetweenPts.to_excel("C:\\Users\\6794grieshj\\Documents\\help.xlsx")
+        distBetweenPts = pandas.DataFrame(squareform(distBetweenPts), index=coords.index, columns=coords.index)  # Measure the distance from each set of points to the other
 
+        # Make diagonal not the minimum for any observation
         maxDist = max(distBetweenPts.max())
         maxIdent = numpy.eye(len(distBetweenPts)) * maxDist
 
-        ##
+        # Find the minimum distance from one set of obs to another
+        combined = distBetweenPts.add(maxIdent, fill_value=0)
+        minval = combined.min()
+        meanNNDist = mean(minval * scale)  #Distance in units
 
-        # [minval, minind] = min(distBetweenPts + maxIdent)
-        # meanNNDist = mean(minval * scale)
-        # regularityNNIndex = meanNNDist/std(minval*scale)
+        scaledMinVal = minval*scale
+        stdScaledMinVal = std(scaledMinVal, ddof=1)
+        regularityNNIndex = meanNNDist/stdScaledMinVal
+
+
+        # Determine Voronoi Cell Area
+        print("hello")
 
 
 
