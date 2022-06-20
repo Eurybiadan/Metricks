@@ -21,8 +21,10 @@ from warnings import warn
 
 import cv2
 import numpy
+import scipy.spatial
 from PIL import Image
 from numpy import mean, std, matlib
+from numpy.ma import size
 
 import ocvl.FeederGUI
 import csv
@@ -37,7 +39,7 @@ class Metricks():
     # adapted from read_folder_contents.m
     def readFolderContents(self, directoryName, extension):
         self.directoryName = directoryName
-        x=1
+        x = 1
         self.fileList = []
         for file in os.listdir(directoryName):
             if file.endswith(extension):
@@ -67,7 +69,7 @@ class Metricks():
         # Calculate scale
         self.axialLength = self.LUT[1][self.LUTindex]
         self.pixelsPerDegree = self.LUT[2][self.LUTindex]
-        self.micronsPerDegree = (291*self.axialLength)/24
+        self.micronsPerDegree = (291 * self.axialLength) / 24
 
     def scaleInput(self, scaleInput):
         self.scaleInput = scaleInput
@@ -76,11 +78,11 @@ class Metricks():
     def selectUnit(self, unit):
         self.selectedUnit = unit
         if self.selectedUnit == 'Microns (mm density)':
-            self.scaleval = 1/(self.pixelsPerDegree/self.micronsPerDegree)
+            self.scaleval = 1 / (self.pixelsPerDegree / self.micronsPerDegree)
         if self.selectedUnit == 'Degrees':
-            self.scaleval = 1/self.pixelsPerDegree
+            self.scaleval = 1 / self.pixelsPerDegree
         if self.selectedUnit == 'Arcmin':
-            self.scaleval = 60/self.pixelsPerDegree
+            self.scaleval = 60 / self.pixelsPerDegree
 
     def runMetricks(self, i, windowSize):
         self.coords = pandas.read_csv(self.fileList[i], header=None)
@@ -102,9 +104,9 @@ class Metricks():
             print(len(windowSize))
 
             if len(windowSize) != 0:
-                self.pixelWindowSze = windowSize/self.scaleval
-                self.diffWidth = (self.width-self.pixelWindowSze)/2
-                self.diffHeight = (self.height-self.pixelWindowSze)/2
+                self.pixelWindowSze = windowSize / self.scaleval
+                self.diffWidth = (self.width - self.pixelWindowSze) / 2
+                self.diffHeight = (self.height - self.pixelWindowSze) / 2
 
                 if self.diffWidth < 0:
                     self.diffWidth = 0
@@ -115,8 +117,10 @@ class Metricks():
                 self.diffWidth = 0
                 self.diffHeight = 0
 
-            self.clippedCoords = self.coordClip(self.coords, [self.diffWidth, self.width-self.diffWidth], [self.diffHeight, self.height-self.diffHeight], 'i')
-            self.clipStartEnd = [self.diffWidth, self.width-self.diffWidth, self.diffHeight, self.height-self.diffHeight]
+            self.clippedCoords = self.coordClip(self.coords, [self.diffWidth, self.width - self.diffWidth],
+                                                [self.diffHeight, self.height - self.diffHeight], 'i')
+            self.clipStartEnd = [self.diffWidth, self.width - self.diffWidth, self.diffHeight,
+                                 self.height - self.diffHeight]
 
 
         else:
@@ -124,9 +128,9 @@ class Metricks():
             self.height = max(self.coords.iloc[:, 1]) - min(self.coords.iloc[:, 1])
 
             if len(windowSize) != 0:
-                self.pixelWindowSze = windowSize/self.scaleval
-                self.diffWidth = (self.width-self.pixelWindowSze)/2
-                self.diffHeight = (self.height-self.pixelWindowSze)/2
+                self.pixelWindowSze = windowSize / self.scaleval
+                self.diffWidth = (self.width - self.pixelWindowSze) / 2
+                self.diffHeight = (self.height - self.pixelWindowSze) / 2
             else:
                 self.pixelWindowSze = [self.height, self.width]
                 self.diffWidth = 0
@@ -134,8 +138,8 @@ class Metricks():
 
             self.clippedCoords = self.coordClip(self.coords, [min(self.coords.iloc[:, 0]) - 0.01 + self.diffWidth,
                                                               max(self.coords.iloc[:, 0]) - self.diffWidth + 0.01],
-                                                             [min(self.coords.iloc[:, 1]) + self.diffHeight - 0.01,
-                                                              max(self.coords.iloc[:, 1]) - self.diffHeight + 0.01], 'i')
+                                                [min(self.coords.iloc[:, 1]) + self.diffHeight - 0.01,
+                                                 max(self.coords.iloc[:, 1]) - self.diffHeight + 0.01], 'i')
             # HERE JG 6/10/22
             self.clipStartEnd = [min(self.coords.iloc[:, 0]) + self.diffWidth - 0.01,
                                  max(self.coords.iloc[:, 0]) - self.diffWidth + 0.01,
@@ -143,8 +147,10 @@ class Metricks():
                                  max(self.coords.iloc[:, 1]) - self.diffHeight + 0.01]
 
         # NEED TO ADD IN THIS FUNCTION CALL AND FUNCTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        self.statistics = self.determineMosaicStats(self.clippedCoords, self.scaleval, self.selectedUnit, self.clipStartEnd, [self.pixelWindowSze, self.pixelWindowSze], 4)
+        self.statistics = self.determineMosaicStats(self.clippedCoords, self.scaleval, self.selectedUnit,
+                                                    self.clipStartEnd, [self.pixelWindowSze, self.pixelWindowSze], 4)
         # HERE JG 6/10/22
+
     def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
         # determine max image size - assumes there are border coordinates
         imsizecol = max(coords.iloc[:, 0])
@@ -160,7 +166,8 @@ class Metricks():
 
         if inoutorxor == 'i':
             # ensures that all coordinates are inside the box. - In accordance with notebook decision
-            boolKey = ((coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) & (coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh))
+            boolKey = ((coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) & (
+                        coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh))
 
         elif inoutorxor == 'o':
             boolKey = ((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
@@ -181,7 +188,8 @@ class Metricks():
 
         for i in range(len(coords)):
             if not boolKey[i]:
-                clippedCoords = clippedCoords.drop(index=i)  # delete the row from the coordinate list if it was false from the boolean key
+                clippedCoords = clippedCoords.drop(
+                    index=i)  # delete the row from the coordinate list if it was false from the boolean key
 
         return clippedCoords
 
@@ -195,7 +203,8 @@ class Metricks():
         # https://stackoverflow.com/questions/32946241/scipy-pdist-on-a-pandas-dataframe
         distBetweenPts = pdist(coords, 'euclidean')
         squareform(distBetweenPts)
-        distBetweenPts = pandas.DataFrame(squareform(distBetweenPts), index=coords.index, columns=coords.index)  # Measure the distance from each set of points to the other
+        distBetweenPts = pandas.DataFrame(squareform(distBetweenPts), index=coords.index,
+                                          columns=coords.index)  # Measure the distance from each set of points to the other
 
         # Make diagonal not the minimum for any observation
         maxDist = max(distBetweenPts.max())
@@ -204,16 +213,43 @@ class Metricks():
         # Find the minimum distance from one set of obs to another
         combined = distBetweenPts.add(maxIdent, fill_value=0)
         minval = combined.min()
-        meanNNDist = mean(minval * scale)  #Distance in units
+        meanNNDist = mean(minval * scale)  # Distance in units
 
-        scaledMinVal = minval*scale
-        stdScaledMinVal = std(scaledMinVal, ddof=1)
-        regularityNNIndex = meanNNDist/stdScaledMinVal
+        scaledMinVal = minval * scale
+        stdScaledMinVal = std(scaledMinVal,
+                              ddof=1)  # https://stackoverflow.com/questions/27600207/why-does-numpy-std-give-a-different-result-to-matlab-std
+        regularityNNIndex = meanNNDist / stdScaledMinVal
 
-
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Voronoi Cell Area
+        sixSided = 0
+        coordsBound = []
+        # more things to be initialized
+
+        # if size(coords,1) > 2:
+        #     points = scipy.spatial.Voronoi(coords)
+
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        # Determine number of cells, density direct count (D_dc)
+        numCells = len(coords)  # Total number of cells
+        totalCellArea = sum(cellArea)
+
+        if unit == "microns (mm density)":
+            totalCoordArea = ((clippedRowCol[0] * clippedRowCol[1]) * ((scale ^ 2) / (1000 ^ 2)))
+
+        else:
+            totalCoordArea = ((clippedRowCol[0] * clippedRowCol[1]) * (scale ^ 2))
+
+        pixel_density = numCells / (clippedRowCol[0] * clippedRowCol[1])
+        density_dc = numCells / totalCoordArea
+
+        if len(coordsBound) == 0:  # check if empty
+            if unit == "microns (mm density)":
+                densityBound = (1000 ^ 2) * size(coordsBound, 1)/totalCellArea
+            else:
+                densityBound = size(coordsBound, 1)/totalCellArea
+        else:
+            densityBound = 0
+
         print("hello")
-
-
-
-
