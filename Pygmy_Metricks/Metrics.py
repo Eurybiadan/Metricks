@@ -223,8 +223,10 @@ class Metricks():
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Voronoi Cell Area
         sixSided = 0
+        bound = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
+        cellArea = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
+        numEdges = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
         coordsBound = []
-        # more things to be initialized
 
         # if size(coords,1) > 2:
         #     points = scipy.spatial.Voronoi(coords)
@@ -235,7 +237,7 @@ class Metricks():
         numCells = len(coords)  # Total number of cells
         totalCellArea = sum(cellArea)
 
-        if unit == "microns (mm density)":
+        if unit == "Microns (mm density)":
             totalCoordArea = ((clippedRowCol[0] * clippedRowCol[1]) * ((scale ^ 2) / (1000 ^ 2)))
 
         else:
@@ -245,7 +247,7 @@ class Metricks():
         density_dc = numCells / totalCoordArea
 
         if len(coordsBound) == 0:  # check if empty
-            if unit == "microns (mm density)":
+            if unit == "Microns (mm density)":
                 densityBound = (1000 ^ 2) * size(coordsBound, 1)/totalCellArea
             else:
                 densityBound = size(coordsBound, 1)/totalCellArea
