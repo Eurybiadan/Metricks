@@ -13,7 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import math
 import os
 from operator import xor
 from os.path import exists
@@ -25,6 +25,8 @@ import scipy.spatial
 from PIL import Image
 from numpy import mean, std, matlib
 from numpy.ma import size
+import matplotlib.pyplot as plt
+from scipy.spatial import voronoi_plot_2d
 
 import ocvl.FeederGUI
 import csv
@@ -223,13 +225,39 @@ class Metricks():
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Voronoi Cell Area
         sixSided = 0
-        bound = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
+        bound = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))  #https://www.adamsmith.haus/python/answers/how-to-create-a-zero-filled-pandas-dataframe-in-python#:~:text=Use%20numpy.,size%20shape%20populated%20with%200.0%20.
         cellArea = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
         numEdges = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
         coordsBound = []
 
-        # if size(coords,1) > 2:
-        #     points = scipy.spatial.Voronoi(coords)
+        if size(coords, 1) > 2:
+            points = scipy.spatial.Voronoi(coords, qhull_options='QJ')
+            fig = voronoi_plot_2d(points)
+            plt.show()
+            V = pandas.DataFrame(points.vertices)
+            # V.to_excel("C:\\Users\\6794grieshj\\Documents\\help.xlsx")
+            C = pandas.DataFrame(points.regions)
+            # C.to_excel("C:\\Users\\6794grieshj\\Documents\\help2.xlsx")
+
+            for i in range(len(C)):
+                cTemp = C.iloc[i]
+                cTemp = [item for item in cTemp if not(math.isnan(item))]
+                vertices = V.iloc[cTemp, :]
+                x = all(cTemp)
+                a = vertices.iloc[:, 0] < bounds[1]
+                b = vertices.iloc[:, 1] < bounds[3]
+                c = vertices.iloc[:, 0] < bounds[0]
+                d = vertices.iloc[:, 1] < bounds[2]
+                a1 = all(a)
+                b1 = all(b)
+                c1 = all(c)
+                d1 = all(d)
+                if x & a1 & b1 & c1 & d1:  # [xmin xmax ymin ymax]
+                     cellArea[i] = 5
+                    
+
+                print("help")
+
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -253,5 +281,23 @@ class Metricks():
                 densityBound = size(coordsBound, 1)/totalCellArea
         else:
             densityBound = 0
+
+
+
+        # Determine Inter-Cell Distance
+        m = 1
+        interCellDist = []
+        maxCellDist = []
+
+        correctInterCellDist = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
+        correctMaxCellDist = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
+        correctNNCellDist = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
+
+        if size(coords, 1) > 2:
+            dt = scipy.spatial.Delaunay(coords)
+            for k in range (coords,1):
+                # i = find(dt.Triangulation[i,:])
+                print("hi")
+
 
         print("hello")
