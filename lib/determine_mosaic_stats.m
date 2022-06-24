@@ -34,6 +34,7 @@ coords_bound=[];
 if size(coords,1) > 2
 
     [V,C] = voronoin(coords,{'QJ'}); % Returns the vertices of the Voronoi edges in VX and VY so that plot(VX,VY,'-',X,Y,'.')
+    
 
     % figure(10); hold on;
     for i=1:length(C)

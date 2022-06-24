@@ -228,7 +228,7 @@ class Metricks():
         bound = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))  #https://www.adamsmith.haus/python/answers/how-to-create-a-zero-filled-pandas-dataframe-in-python#:~:text=Use%20numpy.,size%20shape%20populated%20with%200.0%20.
         cellArea = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
         numEdges = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
-        coordsBound = []
+        coordsBound = pandas.DataFrame(numpy.zeros((size(coords, 1), 2)))
 
         if size(coords, 1) > 2:
             points = scipy.spatial.Voronoi(coords, qhull_options='QJ')
@@ -246,17 +246,29 @@ class Metricks():
                 x = all(cTemp)
                 a = vertices.iloc[:, 0] < bounds[1]
                 b = vertices.iloc[:, 1] < bounds[3]
-                c = vertices.iloc[:, 0] < bounds[0]
-                d = vertices.iloc[:, 1] < bounds[2]
+                c = vertices.iloc[:, 0] > bounds[0]
+                d = vertices.iloc[:, 1] > bounds[2]
                 a1 = all(a)
                 b1 = all(b)
                 c1 = all(c)
                 d1 = all(d)
                 if x & a1 & b1 & c1 & d1:  # [xmin xmax ymin ymax]
-                     cellArea[i] = 5
-                    
+                    cellArea.iloc[i] = self.PolyArea(V.iloc[cTemp, 0], V.iloc[cTemp, 1])
+                    numEdges.iloc[i] = len(V.iloc[cTemp, 0])
+                    print(numEdges.iloc[i, 0])
+                    if numEdges.iloc[i, 0] == 6:
+                        sixSided = sixSided + 1
+                    # print(coords.iloc[i])
+                    coordsBound.iloc[i, 0] = coords.iloc[i, 0]
+                    coordsBound.iloc[i, 1] = coords.iloc[i, 1]
+                    bound.iloc[i] = 1
 
-                print("help")
+                if len(coordsBound) != 0:
+                    temp = coordsBound[:,0]
+                    temp2 = coordsBound[:,0] != 0
+                    coordsBound = coordsBound[coordsBound[:,0] != 0, :]
+
+
 
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -301,3 +313,7 @@ class Metricks():
 
 
         print("hello")
+
+    def PolyArea(self, x, y):
+        # https: // stackoverflow.com / questions / 24467972 / calculate - area - of - polygon - given - x - y - coordinates
+        return 0.5 * numpy.abs(numpy.dot(x, numpy.roll(y, 1)) - numpy.dot(y, numpy.roll(x, 1)))
