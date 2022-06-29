@@ -63,8 +63,8 @@ if size(coords,1) > 2
     %             case 9
     %                 color = 'b';
             end
-    %         figure(10);
-    %         patch(V(C{i},1),V(C{i},2),ones(size(V(C{i},1))),'FaceColor',color);
+%             figure(10);
+%             patch(V(C{i},1),V(C{i},2),ones(size(V(C{i},1))),'FaceColor',color);
     %         hold on;
 
             coords_bound(i,:) = coords(i,:);
@@ -77,10 +77,13 @@ if size(coords,1) > 2
 end
 % hold off;
 % toc
-% figure(2);
-% voronoi(coords(:,1),coords(:,2));
+figure(2);
+voronoi(coords(:,1),coords(:,2));
+hold on
+xticks(0:25:200);
+yticks(0:25:200);
 if ~isempty(coords_bound)
-    coords_bound=coords_bound(coords_bound(:,1)~=0,:); % Clip out the unbounded cells
+    coords_bound=coords_bound(coords_bound(:,1)~=0,:); % Clip out the unbounded cells  -- removes zeros
     cellarea= cellarea((cellarea~=0)).*(scale.^2); % Clip out unbounded cells, convert to square microns
     numedges = numedges(numedges~=0);
     

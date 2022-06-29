@@ -200,7 +200,10 @@ class Metricks():
         # calculates the mean nearest neighbor, cell area created by the coordinates, and calculates the density of the coordinates
         # Coords are in X,Y
 
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Mean N-N
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         # Measure the distance from each set of points to the other
         # https://stackoverflow.com/questions/32946241/scipy-pdist-on-a-pandas-dataframe
         distBetweenPts = pdist(coords, 'euclidean')
@@ -222,13 +225,15 @@ class Metricks():
                               ddof=1)  # https://stackoverflow.com/questions/27600207/why-does-numpy-std-give-a-different-result-to-matlab-std
         regularityNNIndex = meanNNDist / stdScaledMinVal
 
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Voronoi Cell Area
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         sixSided = 0
         bound = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))  #https://www.adamsmith.haus/python/answers/how-to-create-a-zero-filled-pandas-dataframe-in-python#:~:text=Use%20numpy.,size%20shape%20populated%20with%200.0%20.
-        cellArea = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
+        cellArea = pandas.DataFrame()
         numEdges = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
-        coordsBound = pandas.DataFrame(numpy.zeros((size(coords, 1), 2)))
+        coordsBound = pandas.DataFrame()
 
         if size(coords, 1) > 2:
             points = scipy.spatial.Voronoi(coords, qhull_options='QJ')
@@ -253,27 +258,37 @@ class Metricks():
                 c1 = all(c)
                 d1 = all(d)
                 if x & a1 & b1 & c1 & d1:  # [xmin xmax ymin ymax]
-                    cellArea.iloc[i] = self.PolyArea(V.iloc[cTemp, 0], V.iloc[cTemp, 1])
+                    cellArea.loc[i, 0] = self.PolyArea(V.iloc[cTemp, 0], V.iloc[cTemp, 1])
                     numEdges.iloc[i] = len(V.iloc[cTemp, 0])
-                    print(numEdges.iloc[i, 0])
+                    # print(numEdges.iloc[i, 0])
                     if numEdges.iloc[i, 0] == 6:
                         sixSided = sixSided + 1
                     # print(coords.iloc[i])
-                    coordsBound.iloc[i, 0] = coords.iloc[i, 0]
-                    coordsBound.iloc[i, 1] = coords.iloc[i, 1]
+                    coordsBound.loc[i, 0] = coords.iloc[i, 0]
+                    coordsBound.loc[i, 1] = coords.iloc[i, 1]
                     bound.iloc[i] = 1
 
-                if len(coordsBound) != 0:
-                    temp = coordsBound[:,0]
-                    temp2 = coordsBound[:,0] != 0
-                    coordsBound = coordsBound[coordsBound[:,0] != 0, :]
+        if len(coordsBound) != 0:
+            cellArea = cellArea * (scale ** 2)  # convert to square microns
+            numEdges = numEdges.loc[(numEdges != 0).any(axis=1)]  # removes the zeros https://stackoverflow.com/questions/22649693/drop-rows-with-all-zeros-in-pandas-data-frame
 
+            meanCellArea = mean(cellArea)
+            regularityVoroIndex = meanCellArea/std(cellArea, ddof=1)
+            regularityVoroSides = mean(numEdges)/std(numEdges, ddof=1)
+            print(len(coordsBound))
+            coordsBound.to_excel("C:\\Users\\6794grieshj\\Documents\\coordBound.xlsx")  # there is one extra bound cell in python
+            percentSixSided = 100*sixSided/len(coordsBound)
+        else:
+            cellArea = 0
+            meanCellArea = 0
+            regularityVoroIndex = 0
+            regularityVoroSides = 0
+            percentSixSided = 0
 
-
-
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine number of cells, density direct count (D_dc)
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         numCells = len(coords)  # Total number of cells
         totalCellArea = sum(cellArea)
 
@@ -295,7 +310,7 @@ class Metricks():
             densityBound = 0
 
 
-
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Inter-Cell Distance
         m = 1
         interCellDist = []
