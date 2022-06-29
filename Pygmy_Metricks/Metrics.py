@@ -237,8 +237,8 @@ class Metricks():
 
         if size(coords, 1) > 2:
             points = scipy.spatial.Voronoi(coords, qhull_options='QJ')
-            fig = voronoi_plot_2d(points)
-            plt.show()
+            # fig = voronoi_plot_2d(points)
+            # plt.show()
             V = pandas.DataFrame(points.vertices)
             # V.to_excel("C:\\Users\\6794grieshj\\Documents\\help.xlsx")
             C = pandas.DataFrame(points.regions)
@@ -270,13 +270,13 @@ class Metricks():
 
         if len(coordsBound) != 0:
             cellArea = cellArea * (scale ** 2)  # convert to square microns
-            numEdges = numEdges.loc[(numEdges != 0).any(axis=1)]  # removes the zeros https://stackoverflow.com/questions/22649693/drop-rows-with-all-zeros-in-pandas-data-frame
+            numEdges = numEdges.loc[(numEdges != 0).any(axis=1)]  # removes the zeros; https://stackoverflow.com/questions/22649693/drop-rows-with-all-zeros-in-pandas-data-frame
 
             meanCellArea = mean(cellArea)
             regularityVoroIndex = meanCellArea/std(cellArea, ddof=1)
             regularityVoroSides = mean(numEdges)/std(numEdges, ddof=1)
             print(len(coordsBound))
-            coordsBound.to_excel("C:\\Users\\6794grieshj\\Documents\\coordBound.xlsx")  # there is one extra bound cell in python
+            # coordsBound.to_excel("C:\\Users\\6794grieshj\\Documents\\coordBound.xlsx")  # there is one extra bound cell in python
             percentSixSided = 100*sixSided/len(coordsBound)
         else:
             cellArea = 0
@@ -290,22 +290,22 @@ class Metricks():
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         numCells = len(coords)  # Total number of cells
-        totalCellArea = sum(cellArea)
+        totalCellArea = cellArea.sum()
 
         if unit == "Microns (mm density)":
-            totalCoordArea = ((clippedRowCol[0] * clippedRowCol[1]) * ((scale ^ 2) / (1000 ^ 2)))
+            totalCoordArea = ((clippedRowCol[0][0] * clippedRowCol[0][1]) * ((scale ** 2) / (1000 ** 2)))
 
         else:
-            totalCoordArea = ((clippedRowCol[0] * clippedRowCol[1]) * (scale ^ 2))
+            totalCoordArea = ((clippedRowCol[0][0] * clippedRowCol[0][1]) * (scale ** 2))
 
-        pixel_density = numCells / (clippedRowCol[0] * clippedRowCol[1])
-        density_dc = numCells / totalCoordArea
+        pixelDensity = numCells / (clippedRowCol[0][0] * clippedRowCol[0][1])
+        densityDc = numCells / totalCoordArea
 
-        if len(coordsBound) == 0:  # check if empty
+        if len(coordsBound) != 0:  # check if not empty
             if unit == "Microns (mm density)":
-                densityBound = (1000 ^ 2) * size(coordsBound, 1)/totalCellArea
+                densityBound = (1000 ** 2) * len(coordsBound)/totalCellArea
             else:
-                densityBound = size(coordsBound, 1)/totalCellArea
+                densityBound = len(coordsBound)/totalCellArea
         else:
             densityBound = 0
 
@@ -322,7 +322,7 @@ class Metricks():
 
         if size(coords, 1) > 2:
             dt = scipy.spatial.Delaunay(coords)
-            for k in range (coords,1):
+            for k in range(coords, 1):
                 # i = find(dt.Triangulation[i,:])
                 print("hi")
 
