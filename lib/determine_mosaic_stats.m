@@ -77,11 +77,11 @@ if size(coords,1) > 2
 end
 % hold off;
 % toc
-figure(2);
-voronoi(coords(:,1),coords(:,2));
-hold on
-xticks(0:25:200);
-yticks(0:25:200);
+% figure(2);
+% voronoi(coords(:,1),coords(:,2));
+% hold on
+% xticks(0:25:200);
+% yticks(0:25:200);
 if ~isempty(coords_bound)
     coords_bound=coords_bound(coords_bound(:,1)~=0,:); % Clip out the unbounded cells  -- removes zeros
     cellarea= cellarea((cellarea~=0)).*(scale.^2); % Clip out unbounded cells, convert to square microns

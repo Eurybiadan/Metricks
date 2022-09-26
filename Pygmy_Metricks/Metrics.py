@@ -313,21 +313,82 @@ class Metricks():
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Inter-Cell Distance
         m = 1
-        interCellDist = []
-        maxCellDist = []
+        interCellDist = list()
+        maxCellDist = list()
 
         correctInterCellDist = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
         correctMaxCellDist = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
         correctNNCellDist = pandas.DataFrame(numpy.zeros((size(coords, 1), 1)))
 
-        if size(coords, 1) > 2:
+        if len(coords) > 2:
             dt = scipy.spatial.Delaunay(coords)
-            for k in range(coords, 1):
-                # i = find(dt.Triangulation[i,:])
-                print("hi")
+
+            # Find all instances of each coordinate point
+            for k in range(0, len(coords)):
+                i = numpy.where(dt.simplices == k)
+                i = i[0]
+                connInd = dt.simplices[i, :]
+                # connInd = connInd[0]
+                coordRow = numpy.unique(connInd[connInd != k])
+
+                if size(i, 0) != 1:
+                    coordRow = numpy.insert(coordRow, 0, k)
+                else:
+                    # https://stackoverflow.com/questions/39885495/what-is-the-meaning-of-single-quote-in-matlab-and-how-to-change-it-to-python
+                    coordRow = numpy.insert(coordRow, 0, k)
+                    coordRow = coordRow.T
+
+                temp1 = coords.iloc[coordRow, 0]
+                temp2 = coords.iloc[coordRow, 1]
+                temp3 = numpy.empty((0, 2), int)
+                for z in range(len(temp1)):
+                    temp3 = numpy.append(temp3, numpy.array([[temp1.iloc[z], temp2.iloc[z]]]), axis=0)
+                cellDist = squareform(pdist(temp3))
+
+                if bound.iloc[k][0] == 1:
+                    # if it is bound, then we've flagged it as such, and can use it in the triangulation
+                    # only take the first row because that is the cell of interest's relative distance to its neighboring cells
+                    correctInterCellDist[0][m] = scale * (sum(cellDist[0, :]) / (len(cellDist[0, :])-1))
+                    correctMaxCellDist[0][m] = scale * max(cellDist[0, :])
+                    correctNNCellDist[0][m] = scale * min(cellDist[0, 1:])
+                    m = m + 1
+
+                interCellDist.append(scale * (sum(cellDist[0, :]) / (len(cellDist[0, :])-1)))
+                maxCellDist.append(scale*max(cellDist[0, :]))
+
+            m = m-1
+
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! All these distances need to be verified !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            meanInterCellDist = mean(interCellDist)
+            meanMaxCellDist = mean(maxCellDist)
+
+        else:
+            meanInterCellDist = scale * pdist(coords)
+            meanMaxCellDist = meanInterCellDist
+
+        if len(coordsBound != 0):
+            meanCorrectNNDist = mean(correctNNCellDist[0:m])
+            meanCoorectICDist = mean(correctInterCellDist[0:m])
+            regularityICIndex = mean(correctInterCellDist[0:m] / std(correctInterCellDist[0:m]))
+            meanCorrectMaxCellDist = mean(correctMaxCellDist[0:m])
+        else:
+            regularityICIndex = 0
+            meanCorrectNNDist = 0
+            meanCoorectICDist = 0
+            meanCorrectMaxCellDist = 0
 
 
-        print("hello")
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # Determine Density Recovery Profile
+
+    
+
+
+
+
+
+
+
 
     def PolyArea(self, x, y):
         # https: // stackoverflow.com / questions / 24467972 / calculate - area - of - polygon - given - x - y - coordinates
