@@ -22,6 +22,7 @@ from warnings import warn
 import cv2
 import numpy
 import scipy.spatial
+import self
 from PIL import Image
 from numpy import mean, std, matlib
 from numpy.ma import size
@@ -154,48 +155,6 @@ class Metricks():
                                                     self.clipStartEnd, [self.pixelWindowSze, self.pixelWindowSze], 4)
         # HERE JG 6/10/22
 
-    def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
-        # determine max image size - assumes there are border coordinates
-        imsizecol = max(coords.iloc[:, 0])
-        imsizerow = max(coords.iloc[:, 1])
-
-        # making threshold variables
-        minYthresh = thresholdy[0]
-        maxYthresh = thresholdy[1]
-        minXthresh = thresholdx[0]
-        maxXthresh = thresholdx[1]
-
-        clippedCoords = coords
-
-        if inoutorxor == 'i':
-            # ensures that all coordinates are inside the box. - In accordance with notebook decision
-            boolKey = ((coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) & (
-                        coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh))
-
-        elif inoutorxor == 'o':
-            boolKey = ((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
-                       (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
-
-        elif inoutorxor == 'xor':
-            # Check rows coordinates for includable entries - in accordance with notebook decision
-            boolKey = xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
-                          (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
-
-        elif inoutorxor == 'and':
-            # Check rows coordinates for includable entries - in accordance with notebook decision
-            boolKey = (((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh)) &
-                       ((coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)))
-
-        else:
-            return None
-
-        for i in range(len(coords)):
-            if not boolKey[i]:
-                clippedCoords = clippedCoords.drop(
-                    index=i)  # delete the row from the coordinate list if it was false from the boolean key
-
-        return clippedCoords
-
     def determineMosaicStats(self, coords, scale, unit, bounds, clippedRowCol, reliability):
         # This function takes in a list of coordinates in a m-2 matrix and calculates metrics
         # calculates the mean nearest neighbor, cell area created by the coordinates, and calculates the density of the coordinates
@@ -294,13 +253,13 @@ class Metricks():
         totalCellArea = cellArea.sum()
 
         if unit == "Microns (mm density)":
-            totalCoordArea = ((clippedRowCol[0][0] * clippedRowCol[0][1]) * ((scale ** 2) / (1000 ** 2)))
+            self.totalCoordArea = ((clippedRowCol[0][0] * clippedRowCol[0][1]) * ((scale ** 2) / (1000 ** 2)))
 
         else:
-            totalCoordArea = ((clippedRowCol[0][0] * clippedRowCol[0][1]) * (scale ** 2))
+            self.totalCoordArea = ((clippedRowCol[0][0] * clippedRowCol[0][1]) * (scale ** 2))
 
         pixelDensity = numCells / (clippedRowCol[0][0] * clippedRowCol[0][1])
-        densityDc = numCells / totalCoordArea
+        densityDc = numCells / self.totalCoordArea
 
         if len(coordsBound) != 0:  # check if not empty
             if unit == "Microns (mm density)":
@@ -467,7 +426,7 @@ class Metricks():
         resampleX = change/10
         minSample = min(scaledDrpSizes)
         maxSample = max(scaledDrpSizes)
-        interPDrpX = minSample:resampleX:maxSample
+        interPDrpX = range(minSample, resampleX, maxSample)
 
         # If we don't have enough to fit splines, then just pick the 2nd value
         if (len(scaledDrpSizes) >= 2) and (len(densityPerAnnulus) >= 2) and (len(interPDrpX) >= 2):
@@ -518,20 +477,124 @@ class Metricks():
 
         #PLOT something
 
-                    
-    def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
-        return 0
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # Output List Formatting
+    # Make the returned struct
+    if self.selectedUnit == 'microns(mm density)':
+        self.totalCoordArea = self.totalCoordArea * 1000 ^ 2
 
+    # mosaicStats = ...
+
+
+
+
+    def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
+        # determine max image size - assumes there are border coordinates
+        imsizecol = max(coords.iloc[:, 0])
+        imsizerow = max(coords.iloc[:, 1])
+
+        # making threshold variables
+        minYthresh = thresholdy[0]
+        maxYthresh = thresholdy[1]
+        minXthresh = thresholdx[0]
+        maxXthresh = thresholdx[1]
+
+        clippedCoords = coords
+
+        if inoutorxor == 'i':
+            # ensures that all coordinates are inside the box. - In accordance with notebook decision
+            boolKey = ((coords.iloc[:, 1] > minYthresh) & (coords.iloc[:, 1] < maxYthresh) & (
+                        coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh))
+
+        elif inoutorxor == 'o':
+            boolKey = ((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
+                       (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
+
+        elif inoutorxor == 'xor':
+            # Check rows coordinates for includable entries - in accordance with notebook decision
+            boolKey = xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
+                          (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
+
+        elif inoutorxor == 'and':
+            # Check rows coordinates for includable entries - in accordance with notebook decision
+            boolKey = (((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh)) &
+                       ((coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)))
+
+        else:
+            return None
+
+        for i in range(len(coords)):
+            if not boolKey[i]:
+                clippedCoords = clippedCoords.drop(
+                    index=i)  # delete the row from the coordinate list if it was false from the boolean key
+
+        return clippedCoords
     def extrema(self, x):
+        """
+        Need to code this
+        :param x:
+        :return:
+        """
+        xMax = []
+        iMax = []
+        xMin = []
+        iMin = []
+
+        # Vector Input?
+        Nt = numpy.size(x)
+        if Nt != len(x):
+            print("Entry must be a vector")
+
+        # NaNs
+        # https://www.mathworks.com/matlabcentral/answers/466615-what-is-an-equivalent-of-find-in-python
+        iNan = numpy.argwhere(numpy.isnan(x))
+        indX = range(0, Nt)
+        if len(iNan) != 0:
+            indX[iNan] = []
+            x[iNan] = []
+            Nt = len(x)
+
+        # Difference between subsequent elements:
+        dx = numpy.diff(x)
+
+        # Is a horizontal line?
+        if ~numpy.any(dx):
+            return
+
+        # Flat peaks? Put the middle element:
+        a = numpy.argwhere(dx != 0)                     # Indexdes where x changes
+        lm = numpy.argwhere(numpy.diff(a) != 1) + 1     # Indexes where a do not changes
+        d = a[lm] - a[lm-1]                             # Number of elements in the flat peak
+        a[lm] = a[lm] - math.floor(d/2)                 # Save middle element
+        a[-1+1] = Nt
+
+        # Peaks?
+        xa = x[a]                               # Serie without flat peaks
+        b = (numpy.diff(xa) > 0)                # 1 => positive slopes (mimima begin)
+                                                # 0  =>  negative slopes (maxima begin)
+        xb = numpy.diff(b)                      # -1 =>  maxima indexes (but one)
+                                                # +1 =>  minima indexes (but one)
+
+        iMax = numpy.argwhere(xb == -1) + 1     # Maxima indexes
+        iMin = numpy.argwhere(xb == +1) + 1     # Minima indexes
+        iMax = a[iMax]
+        iMin = a[iMin]
+
+        nmaxi = len(iMax)
+        nmini = len(iMin)
+
+        # Maximum or minimum on a flat peak at the end?
+        
+
+
+
+
+
+
+
+
         self.localMaxY = None
         self.maxesInds = None
-
-
-
-
-
-
-
 
 
 
