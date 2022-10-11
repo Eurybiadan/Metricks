@@ -26,12 +26,13 @@ from PIL import Image
 from numpy import mean, std, matlib
 from numpy.ma import size
 import matplotlib.pyplot as plt
+from scipy.interpolate import UnivariateSpline
 from scipy.spatial import voronoi_plot_2d
 
 import ocvl.FeederGUI
 import csv
 import pandas
-from scipy.spatial.distance import squareform, pdist
+from scipy.spatial.distance import squareform, pdist, cdist
 
 
 class Metricks():
@@ -381,7 +382,152 @@ class Metricks():
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Density Recovery Profile
 
-    
+        coordBounds = (bounds[0:1], bounds[2:3])
+        densityDc = pixelDensity
+
+        width = coordBounds[0][1] - coordBounds[0][0]
+        height = coordBounds[1][1] - coordBounds[1][0]
+
+        # Equation for determine min bin size Rodieck (1990)
+        s = min([width, height])  # smallest length of the two sides
+        k = reliability  # reliability factor
+        D = densityDc  # Density in cones/pixels^2
+
+        pixPerBin = round(k / (s * D * math.sqrt(math.pi)))
+        # If it's at a subpixel level, cap it to be a single pixel and a single micron/pixel
+        if pixPerBin < 0.5:
+            pixPerBin = 1
+
+        numOfBins = round((s/pixPerBin)/2)
+        if numOfBins < 5:
+            numOfBins = 5
+
+        drpSizes = pandas.DataFrame(numpy.zeros((size(numOfBins, 1), 1)))
+        drpSizes[0] = 1  # to prevent dividing by zero later
+
+        for i in range(2,numOfBins-1):
+            drpSizes[i] = pixPerBin * (i-1)
+
+        # Make sure we don't have duplicate sizes
+        drpSizes = numpy.unique(drpSizes)
+        scaledDrpSizes = drpSizes * scale
+
+        numCellsInAnnulus = pandas.DataFrame(numpy.zeros((size(coords, 1), len(drpSizes))))
+        densityPerAnnulus = pandas.DataFrame(numpy.zeros((len(drpSizes-1), 1)))
+        edgeFactor = 1-1/math.pi  # Edge factor integrated
+
+        for i in range(0,len(drpSizes), 1):
+            xMin = coordBounds[0][0] + drpSizes[i]
+            xMax = coordBounds[0][1] - drpSizes[i]
+
+            yMin = coordBounds[1][0] + drpSizes[i]
+            yMax = coordBounds[1][1] - drpSizes[i]
+
+            xBounds = [xMin, xMax]
+            yBounds = [yMin, yMax]
+
+            # Establish which cells are inside and outside hte region we'll use
+
+            cellCoordsXOR = self.coordClip(coords, xBounds, yBounds, 'xor')
+            cellCoordsInside = self.coordClip(coords, xBounds, yBounds, 'i')
+            cellCoordsAND = self.coordClip(coords, xBounds, yBounds, 'and')
+
+            numCellsInside = size(cellCoordsInside, 0)
+            numCellsXOR = size(cellCoordsXOR, 0)
+            numCellsAND = size(cellCoordsAND, 0)
+
+            coordsReordered = [cellCoordsInside, cellCoordsXOR, cellCoordsAND]
+
+            # https://stackoverflow.com/questions/43650931/python-alternative-for-calculating-pairwise-distance-between-two-sets-of-2d-poin
+            # Take reordered coordinates and find the distance between them all - each coord is along the row
+            umDistBetweenPts = cdist(coordsReordered, coordsReordered) * scale
+            unadjustedArea = math.pi * (drpSizes[i] * drpSizes[i] - drpSizes[i-1] * drpSizes[i-1])  # In pixels
+
+            # factor calculated for each
+            edgeArea = (unadjustedArea * edgeFactor * (scale * scale) / (1000 * 1000))
+
+            cornerFactor = 1 - (((2 * drpSizes[i]) / (math.pi * width * height)) * (width + height)) + ((drpSizes[i] * drpSizes[i]) / (math.pi * width * height))
+            cornerArea = (unadjustedArea * cornerFactor * (scale * scale) / (1000 * 1000))
+
+            unadjustedArea = unadjustedArea * (scale * scale) / (1000 * 1000)
+
+            numCellsInAnnulus[:, i-1] = sum((scaledDrpSizes[i-1] < umDistBetweenPts) & (umDistBetweenPts <= scaledDrpSizes[i]), 2)
+            centerDens = numCellsInAnnulus[1:numCellsInside, i-1] / unadjustedArea
+
+            edgeDens = numCellsInAnnulus[numCellsInside+1: numCellsInside + numCellsXOR, i-1] / edgeArea
+
+            cornerDens = numCellsInAnnulus[numCellsInside+numCellsXOR+1: numCellsInside+numCellsXOR+numCellsAND, i-1] / cornerArea
+
+            densityPerAnnulus[i-1] = mean([centerDens, edgeDens, cornerDens])
+
+        scaledDrpSizes = scaledDrpSizes[1:]  # add transpose here? - jg
+
+        # Auto-peak finding approach
+        change = numpy.diff(scaledDrpSizes)
+        resampleX = change/10
+        minSample = min(scaledDrpSizes)
+        maxSample = max(scaledDrpSizes)
+        interPDrpX = minSample:resampleX:maxSample
+
+        # If we don't have enough to fit splines, then just pick the 2nd value
+        if (len(scaledDrpSizes) >= 2) and (len(densityPerAnnulus) >= 2) and (len(interPDrpX) >= 2):
+            # https://stackoverflow.com/questions/20694809/matlab-spline-function-in-python
+            splined = UnivariateSpline(scaledDrpSizes, densityPerAnnulus, interPDrpX)
+
+            # Start looking for points AFTER the known "0's"
+            lastZero = 1
+            for i in range(0, len(splined)):
+                if splined[i] == 0:
+                    lastZero = i
+                else:
+                    break
+
+            localExtremeaBins = interPDrpX[lastZero:]
+            localExtrema = splined[lastZero:]
+
+            if len(localExtrema) >= 3:
+                self.extrema(localExtrema)
+
+                # Only use the first peak that is higher than the mean height (designed to kill off the ER-level peaks)
+                # https://stackoverflow.com/questions/28512237/python-equivalent-to-matlab-a-b-sorty
+                self.maxesInds = self.maxesInds.sort(axis=1)
+                sortId = self.maxesInds.argsort(axis=1)
+                self.localMaxY = self.localMaxY[sortId]
+                localMaxX = localExtremeaBins[self.maxesInds]
+
+                meanDensity = mean(densityPerAnnulus)
+                for i in range(0,len(self.localMaxY)):
+                    if self.localMaxY[i] >= meanDensity:
+                        localMaxX = localMaxX[i]
+                        self.localMaxY = self.localMaxY[i]
+                        break
+                if len(localMaxX) != 0:
+                    estSpacing = localMaxX
+                else:
+                    # If there aren't any peaks, pick the first peak that is above the mean density
+                    for i in range(0, len(localExtrema)):
+                        if localExtrema[i] >= meanDensity:
+                            estSpacing = localExtremeaBins[i]
+                            self.localMaxY = localExtrema[i]
+                            break
+
+            else:
+                estSpacing = localExtrema[0]
+        else:
+            estSpacing = scaledDrpSizes[1]
+
+        #PLOT something
+
+                    
+    def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
+        return 0
+
+    def extrema(self, x):
+        self.localMaxY = None
+        self.maxesInds = None
+
+
+
 
 
 
