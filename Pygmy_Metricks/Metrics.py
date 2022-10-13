@@ -486,8 +486,6 @@ class Metricks():
     # mosaicStats = ...
 
 
-
-
     def coordClip(self, coords, thresholdx, thresholdy, inoutorxor):
         # determine max image size - assumes there are border coordinates
         imsizecol = max(coords.iloc[:, 0])
@@ -531,7 +529,6 @@ class Metricks():
         return clippedCoords
     def extrema(self, x):
         """
-        Need to code this
         :param x:
         :return:
         """
@@ -580,23 +577,65 @@ class Metricks():
         iMax = a[iMax]
         iMin = a[iMin]
 
-        nmaxi = len(iMax)
-        nmini = len(iMin)
+        nMaxi = len(iMax)
+        nMini = len(iMin)
 
         # Maximum or minimum on a flat peak at the end?
-        
+        if (nMaxi == 0) and (nMini == 0):
+            if x[0] > x[Nt]:
+                xMax = x[0]
+                iMax = indX[0]
+                xMin = x[Nt]
+                iMin = indX[Nt]
+            elif x[0] < x[Nt]:
+                xMax = x[Nt]
+                iMax = indX[Nt]
+                xMin = x[0]
+                iMin = indX[0]
+            return
+
+        # Maximum or minimum at the ends?
+        if (nMaxi == 0):
+            iMax[0, 1] = [0, Nt]
+        elif (nMini == 0):
+            iMin[0, 2] = [0, Nt]
+        else:
+            if iMax[0] < iMin[0]:
+                iMin[1, nMini+1] = iMin
+                iMin[0] = 1
+            else:
+                iMax[1, nMaxi+1] = iMin
+                iMax[0] = 1
+            if iMax[-1] > iMin[-1]:
+                iMin[-1+1] = Nt
+            else:
+                iMax[-1+1] = Nt
+
+        xMax = x[iMax]
+        xMin = x[iMin]
+
+        # NaN's
+        if len(iNan) != 0:
+            iMax = indX[iMax]
+            iMin = indX[iMin]
+
+        # Same size as x:
+        # https://stackoverflow.com/questions/11892358/matlab-vs-python-reshape
+        iMax = numpy.reshape(iMax, len(xMax))
+        iMin = numpy.reshape(iMin, len(xMin))
+
+        # Descending order:
+        temp = -iMax.sort(axis=1)
+        inMax = -iMax.argsort(axis=1)
+        xMax = xMax[inMax]
+        iMax = iMax[inMax]
+        xMin = xMin.sort(axis=1)
+        inMin = xMin.argsort(axis=1)
+        iMin = iMin[inMin]
 
 
-
-
-
-
-
-
-        self.localMaxY = None
-        self.maxesInds = None
-
-
+        # self.localMaxY = None
+        # self.maxesInds = None
 
 
     def PolyArea(self, x, y):
