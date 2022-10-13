@@ -341,7 +341,7 @@ class Metricks():
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Determine Density Recovery Profile
 
-        coordBounds = (bounds[0:1], bounds[2:3])
+        coordBounds = [bounds[0:2], bounds[2:]]
         densityDc = pixelDensity
 
         width = coordBounds[0][1] - coordBounds[0][0]
@@ -361,11 +361,11 @@ class Metricks():
         if numOfBins < 5:
             numOfBins = 5
 
-        drpSizes = pandas.DataFrame(numpy.zeros((size(numOfBins, 1), 1)))
-        drpSizes[0] = 1  # to prevent dividing by zero later
+        drpSizes = pandas.DataFrame(numpy.zeros(numOfBins))
+        drpSizes[0][0] = 1  # to prevent dividing by zero later
 
-        for i in range(2,numOfBins-1):
-            drpSizes[i] = pixPerBin * (i-1)
+        for i in range(1, numOfBins-1):
+            drpSizes[0][i] = pixPerBin * (i)
 
         # Make sure we don't have duplicate sizes
         drpSizes = numpy.unique(drpSizes)
@@ -375,7 +375,7 @@ class Metricks():
         densityPerAnnulus = pandas.DataFrame(numpy.zeros((len(drpSizes-1), 1)))
         edgeFactor = 1-1/math.pi  # Edge factor integrated
 
-        for i in range(0,len(drpSizes), 1):
+        for i in range(1, len(drpSizes), 1):
             xMin = coordBounds[0][0] + drpSizes[i]
             xMax = coordBounds[0][1] - drpSizes[i]
 
@@ -391,11 +391,12 @@ class Metricks():
             cellCoordsInside = self.coordClip(coords, xBounds, yBounds, 'i')
             cellCoordsAND = self.coordClip(coords, xBounds, yBounds, 'and')
 
-            numCellsInside = size(cellCoordsInside, 0)
-            numCellsXOR = size(cellCoordsXOR, 0)
-            numCellsAND = size(cellCoordsAND, 0)
+            numCellsInside = size(cellCoordsInside, 1)
+            numCellsXOR = size(cellCoordsXOR, 1)
+            numCellsAND = size(cellCoordsAND, 1)
 
             coordsReordered = [cellCoordsInside, cellCoordsXOR, cellCoordsAND]
+            coordsReordered = pandas.concat(coordsReordered)
 
             # https://stackoverflow.com/questions/43650931/python-alternative-for-calculating-pairwise-distance-between-two-sets-of-2d-poin
             # Take reordered coordinates and find the distance between them all - each coord is along the row
@@ -410,14 +411,14 @@ class Metricks():
 
             unadjustedArea = unadjustedArea * (scale * scale) / (1000 * 1000)
 
-            numCellsInAnnulus[:, i-1] = sum((scaledDrpSizes[i-1] < umDistBetweenPts) & (umDistBetweenPts <= scaledDrpSizes[i]), 2)
-            centerDens = numCellsInAnnulus[1:numCellsInside, i-1] / unadjustedArea
+            numCellsInAnnulus.iloc[:, i-2] = numpy.sum((scaledDrpSizes[i-1] < umDistBetweenPts) & (umDistBetweenPts <= scaledDrpSizes[i]), axis=1)
+            centerDens = numCellsInAnnulus.iloc[1:numCellsInside, i-1] / unadjustedArea
 
-            edgeDens = numCellsInAnnulus[numCellsInside+1: numCellsInside + numCellsXOR, i-1] / edgeArea
+            edgeDens = numCellsInAnnulus.iloc[numCellsInside: numCellsInside + numCellsXOR, i-1] / edgeArea
 
-            cornerDens = numCellsInAnnulus[numCellsInside+numCellsXOR+1: numCellsInside+numCellsXOR+numCellsAND, i-1] / cornerArea
+            cornerDens = numCellsInAnnulus.iloc[numCellsInside+numCellsXOR: numCellsInside+numCellsXOR+numCellsAND, i-1] / cornerArea
 
-            densityPerAnnulus[i-1] = mean([centerDens, edgeDens, cornerDens])
+            densityPerAnnulus.iloc[i-1] = mean([centerDens, edgeDens, cornerDens])
 
         scaledDrpSizes = scaledDrpSizes[1:]  # add transpose here? - jg
 
@@ -480,8 +481,8 @@ class Metricks():
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Output List Formatting
     # Make the returned struct
-    if self.selectedUnit == 'microns(mm density)':
-        self.totalCoordArea = self.totalCoordArea * 1000 ^ 2
+    # if self.selectedUnit == 'Microns(mm density)':
+    #     self.totalCoordArea = self.totalCoordArea * 1000 ^ 2
 
     # mosaicStats = ...
 
@@ -505,18 +506,20 @@ class Metricks():
                         coords.iloc[:, 0] > minXthresh) & (coords.iloc[:, 0] < maxXthresh))
 
         elif inoutorxor == 'o':
-            boolKey = ((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
-                       (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
+            boolKey = ((coords.iloc[:, 1] < minYthresh) | (coords.iloc[:, 1] > maxYthresh) |
+                       (coords.iloc[:, 0] < minXthresh) | (coords.iloc[:, 0] > maxXthresh))
 
         elif inoutorxor == 'xor':
             # Check rows coordinates for includable entries - in accordance with notebook decision
-            boolKey = xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh) |
-                          (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
+            # boolKey = xor((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh),
+            #               (coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh))
+            boolKey = xor((coords.iloc[:,1] <= minYthresh) | (coords.iloc[:,1] >= maxYthresh), (coords.iloc[:,0] <= minXthresh) | (coords.iloc[:,0] >= maxXthresh))
+
 
         elif inoutorxor == 'and':
             # Check rows coordinates for includable entries - in accordance with notebook decision
-            boolKey = (((coords.iloc[:, 1] > minYthresh) | (coords.iloc[:, 1] < maxYthresh)) &
-                       ((coords.iloc[:, 0] > minXthresh) | (coords.iloc[:, 0] < maxXthresh)))
+            boolKey = (((coords.iloc[:, 1] <= minYthresh) | (coords.iloc[:, 1] >= maxYthresh)) &
+                       ((coords.iloc[:, 0] <= minXthresh) | (coords.iloc[:, 0] >= maxXthresh)))
 
         else:
             return None
