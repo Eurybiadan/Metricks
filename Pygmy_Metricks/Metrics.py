@@ -27,7 +27,7 @@ from PIL import Image
 from numpy import mean, std, matlib
 from numpy.ma import size
 import matplotlib.pyplot as plt
-from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import CubicSpline
 from scipy.spatial import voronoi_plot_2d
 
 import ocvl.FeederGUI
@@ -416,23 +416,23 @@ class Metricks():
 
             edgeDens = numCellsInAnnulus.iloc[numCellsInside: numCellsInside + numCellsXOR, i-1] / edgeArea
 
-            cornerDens = numCellsInAnnulus.iloc[numCellsInside+numCellsXOR: numCellsInside+numCellsXOR+numCellsAND, i-1] / cornerArea
+            cornerDens = numCellsInAnnulus.iloc[(numCellsInside+numCellsXOR): (numCellsInside+numCellsXOR+numCellsAND), i-1] / cornerArea
 
-            densityPerAnnulus.iloc[i-1] = mean([centerDens, edgeDens, cornerDens])
+            densityPerAnnulus.iloc[i-1] = mean(pandas.concat([centerDens, edgeDens, cornerDens]))
 
-        scaledDrpSizes = scaledDrpSizes[1:]  # add transpose here? - jg
+        scaledDrpSizes = scaledDrpSizes[1:]
 
         # Auto-peak finding approach
         change = numpy.diff(scaledDrpSizes)
         resampleX = change/10
         minSample = min(scaledDrpSizes)
         maxSample = max(scaledDrpSizes)
-        interPDrpX = range(minSample, resampleX, maxSample)
+        interPDrpX = numpy.linspace(minSample, maxSample, round((maxSample-minSample)/resampleX[0]))  #numbers are just slightly off (4th decimal place)
 
         # If we don't have enough to fit splines, then just pick the 2nd value
         if (len(scaledDrpSizes) >= 2) and (len(densityPerAnnulus) >= 2) and (len(interPDrpX) >= 2):
             # https://stackoverflow.com/questions/20694809/matlab-spline-function-in-python
-            splined = UnivariateSpline(scaledDrpSizes, densityPerAnnulus, interPDrpX)
+            splined = CubicSpline(scaledDrpSizes, densityPerAnnulus, interPDrpX)
 
             # Start looking for points AFTER the known "0's"
             lastZero = 1
