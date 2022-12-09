@@ -5,7 +5,6 @@ Does not include tests which fall under ``array_constructors``.
 
 """
 
-from typing import List
 import numpy as np
 import numpy.typing as npt
 
@@ -22,7 +21,7 @@ AR_c16: npt.NDArray[np.complex128]
 AR_m: npt.NDArray[np.timedelta64]
 AR_O: npt.NDArray[np.object_]
 
-B: List[int]
+B: list[int]
 C: SubClass
 
 reveal_type(np.count_nonzero(i8))  # E: int
@@ -106,11 +105,11 @@ reveal_type(np.cross(AR_i8, AR_c16))  # E: ndarray[Any, dtype[complexfloating[An
 reveal_type(np.cross(AR_O, AR_O))  # E: ndarray[Any, dtype[object_]]
 
 reveal_type(np.indices([0, 1, 2]))  # E: ndarray[Any, dtype[{int_}]]
-reveal_type(np.indices([0, 1, 2], sparse=True))  # E: tuple[ndarray[Any, dtype[{int_}]]]
+reveal_type(np.indices([0, 1, 2], sparse=True))  # E: tuple[ndarray[Any, dtype[{int_}]], ...]
 reveal_type(np.indices([0, 1, 2], dtype=np.float64))  # E: ndarray[Any, dtype[{float64}]]
-reveal_type(np.indices([0, 1, 2], sparse=True, dtype=np.float64))  # E: tuple[ndarray[Any, dtype[{float64}]]]
+reveal_type(np.indices([0, 1, 2], sparse=True, dtype=np.float64))  # E: tuple[ndarray[Any, dtype[{float64}]], ...]
 reveal_type(np.indices([0, 1, 2], dtype=float))  # E: ndarray[Any, dtype[Any]]
-reveal_type(np.indices([0, 1, 2], sparse=True, dtype=float))  # E: tuple[ndarray[Any, dtype[Any]]]
+reveal_type(np.indices([0, 1, 2], sparse=True, dtype=float))  # E: tuple[ndarray[Any, dtype[Any]], ...]
 
 reveal_type(np.binary_repr(1))  # E: str
 

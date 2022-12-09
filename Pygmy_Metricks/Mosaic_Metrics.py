@@ -32,10 +32,10 @@ class PygmyMetricks():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    ureg = UnitRegistry()
-    with pkg_resources.path("ocvl", "ocvl-pint-defs.txt") as pint_path:
-        deffile = open(pint_path, "r")
-        ureg.load_definitions(deffile)
+    # ureg = UnitRegistry()
+    # with pkg_resources.path("ocvl", "ocvl-pint-defs.txt") as pint_path:
+    #     deffile = open(pint_path, "r")
+    #     ureg.load_definitions(deffile)
 
     app = QApplication([])
     widget = PygmyFeeder()

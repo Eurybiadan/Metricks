@@ -22,7 +22,6 @@ from warnings import warn
 import cv2
 import numpy
 import scipy.spatial
-import self
 from PIL import Image
 from numpy import mean, std, matlib
 from numpy.ma import size
@@ -372,7 +371,7 @@ class Metricks():
         scaledDrpSizes = drpSizes * scale
 
         numCellsInAnnulus = pandas.DataFrame(numpy.zeros((size(coords, 1), len(drpSizes))))
-        densityPerAnnulus = pandas.DataFrame(numpy.zeros((len(drpSizes-1), 1)))
+        densityPerAnnulus = pandas.DataFrame(numpy.zeros((len(drpSizes)-1, 1)))
         edgeFactor = 1-1/math.pi  # Edge factor integrated
 
         for i in range(1, len(drpSizes), 1):
@@ -411,8 +410,8 @@ class Metricks():
 
             unadjustedArea = unadjustedArea * (scale * scale) / (1000 * 1000)
 
-            numCellsInAnnulus.iloc[:, i-2] = numpy.sum((scaledDrpSizes[i-1] < umDistBetweenPts) & (umDistBetweenPts <= scaledDrpSizes[i]), axis=1)
-            centerDens = numCellsInAnnulus.iloc[1:numCellsInside, i-1] / unadjustedArea
+            numCellsInAnnulus.iloc[:, i-1] = numpy.sum((scaledDrpSizes[i-1] < umDistBetweenPts) & (umDistBetweenPts <= scaledDrpSizes[i]), axis=1)
+            centerDens = numCellsInAnnulus.iloc[0:numCellsInside, i-1] / unadjustedArea
 
             edgeDens = numCellsInAnnulus.iloc[numCellsInside: numCellsInside + numCellsXOR, i-1] / edgeArea
 
